@@ -31,13 +31,14 @@ Puppeteer + serverless Chromium for previews · Tailwind v4.
    | `DATABASE_URL` | Neon connection string (the pooled one is fine). |
    | `CHROME_EXECUTABLE_PATH` | Optional, local dev only. Chrome is auto-detected on macOS/Linux. |
 
-3. **Database** – create the tables in Neon:
+3. **Database** – migrations in `drizzle/` are applied automatically before every
+   build (`scripts/migrate.mjs`), including on Vercel. To apply them by hand:
 
    ```bash
-   npm run db:push
+   npm run db:migrate
    ```
 
-   (`drizzle/` holds the equivalent SQL migration if you prefer `npm run db:migrate`.)
+   After changing `src/db/schema.ts`, run `npm run db:generate` to add a migration.
 
 4. **Run**
 
