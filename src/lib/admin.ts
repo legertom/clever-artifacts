@@ -267,12 +267,6 @@ export async function adminPeoplePage(query: PeoplePageQuery): Promise<{ rows: A
   const manager = alias(users, "manager");
   const reports = alias(users, "reports");
 
-  const reportCount = db
-    .select({ n: count() })
-    .from(reports)
-    .where(eq(reports.managerEmail, users.email))
-    .as("report_count");
-
   const conditions: (SQL | undefined)[] = [];
   if (query.filter === "signed_in") conditions.push(isNotNull(users.lastLoginAt));
   if (query.filter === "directory") conditions.push(isNull(users.lastLoginAt));
@@ -311,7 +305,7 @@ export async function adminPeoplePage(query: PeoplePageQuery): Promise<{ rows: A
         department: users.department,
         managerEmail: users.managerEmail,
         managerName: manager.name,
-        reportCount: sql<number>`coalesce((${reportCount}), 0)::int`,
+        reportCount: sql<number>`(select count(*) from ${users} r where r.manager_email = ${users.email})::int`,
         createdAt: users.createdAt,
         lastLoginAt: users.lastLoginAt,
         artifactsOwned: sql<number>`coalesce(${owned.ownedN}, 0)::int`,
