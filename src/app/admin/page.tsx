@@ -161,45 +161,18 @@ export default async function AdminPage() {
               Everyone who has signed in or been imported from the directory. Imported people can be added to share
               lists before their first sign-in. Needs columns like Name, Email, Title, Department.
             </p>
-            <div className="card mt-3 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-3 py-2">Person</th>
-                    <th className="px-3 py-2">Last sign-in</th>
-                    <th className="px-3 py-2 text-right">Artifacts</th>
-                    <th className="px-3 py-2 text-right">Views</th>
-                    <th className="px-3 py-2">Last view</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {people.map((p) => (
-                    <tr key={p.id}>
-                      <td className="px-3 py-2">
-                        <span className="inline-flex items-center gap-2">
-                          <Avatar name={p.name} email={p.email} image={p.image} size={22} />
-                          <span>
-                            <span className="block font-medium text-neutral-900">{p.name ?? p.email}</span>
-                            <span className="block text-xs text-neutral-500">
-                              {p.email}
-                              {ADMIN_EMAILS.has(p.email) ? " · admin" : ""}
-                              {p.title ? ` · ${p.title}` : ""}
-                              {p.department ? ` · ${p.department}` : ""}
-                            </span>
-                          </span>
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                        {p.lastLoginAt ? timeAgo(p.lastLoginAt) : <span className="text-neutral-400">never</span>}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.artifactsOwned}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.viewsMade}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{p.lastViewAt ? timeAgo(p.lastViewAt) : "never"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <PeopleTable rows={people.filter((p) => p.lastLoginAt || p.artifactsOwned || p.viewsMade)} />
+            {people.some((p) => !p.lastLoginAt && !p.artifactsOwned && !p.viewsMade) ? (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm text-neutral-600 hover:text-neutral-900">
+                  {people.filter((p) => !p.lastLoginAt && !p.artifactsOwned && !p.viewsMade).length} more from the directory who
+                  haven&apos;t signed in yet
+                </summary>
+                <div className="mt-3">
+                  <PeopleTable rows={people.filter((p) => !p.lastLoginAt && !p.artifactsOwned && !p.viewsMade)} />
+                </div>
+              </details>
+            ) : null}
           </section>
 
           <section className="lg:col-span-2">
@@ -236,6 +209,57 @@ function Tile({ label, value, sub }: { label: string; value: number; sub: string
       <div className="text-xs uppercase tracking-wide text-neutral-500">{label}</div>
       <div className="mt-1 text-2xl font-semibold tabular-nums text-neutral-900">{value.toLocaleString()}</div>
       <div className="mt-0.5 text-xs text-neutral-500">{sub}</div>
+    </div>
+  );
+}
+
+function PeopleTable({ rows }: { rows: Awaited<ReturnType<typeof adminListUsers>> }) {
+  return (
+    <div className="card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
+          <tr>
+            <th className="px-3 py-2">Person</th>
+            <th className="px-3 py-2">Last sign-in</th>
+            <th className="px-3 py-2 text-right">Artifacts</th>
+            <th className="px-3 py-2 text-right">Views</th>
+            <th className="px-3 py-2">Last view</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-neutral-100">
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
+                Nobody yet.
+              </td>
+            </tr>
+          ) : null}
+          {rows.map((p) => (
+            <tr key={p.id}>
+              <td className="px-3 py-2">
+                <span className="inline-flex items-center gap-2">
+                  <Avatar name={p.name} email={p.email} image={p.image} size={22} />
+                  <span>
+                    <span className="block font-medium text-neutral-900">{p.name ?? p.email}</span>
+                    <span className="block text-xs text-neutral-500">
+                      {p.email}
+                      {ADMIN_EMAILS.has(p.email) ? " · admin" : ""}
+                      {p.title ? ` · ${p.title}` : ""}
+                      {p.department ? ` · ${p.department}` : ""}
+                    </span>
+                  </span>
+                </span>
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
+                {p.lastLoginAt ? timeAgo(p.lastLoginAt) : <span className="text-neutral-400">never</span>}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums">{p.artifactsOwned}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{p.viewsMade}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{p.lastViewAt ? timeAgo(p.lastViewAt) : "never"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
