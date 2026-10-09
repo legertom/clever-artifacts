@@ -1,18 +1,23 @@
 import Link from "next/link";
-import { ArtifactCard } from "@/components/artifact-card";
+import { ArtifactGrid } from "@/components/artifact-grid";
 import { Nav } from "@/components/nav";
-import { listMine, listSharedWithMe } from "@/lib/artifacts";
+import { TrashList } from "@/components/trash-list";
+import { listMine, listSharedWithMe, listTrash, purgeExpiredTrash } from "@/lib/artifacts";
+import { ALLOWED_EMAIL_DOMAIN, TRASH_RETENTION_DAYS } from "@/lib/config";
 import { requireUser } from "@/lib/session";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type Tab = "mine" | "shared" | "trash";
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser();
   const { tab: rawTab } = await searchParams;
-  const tab = rawTab === "shared" ? "shared" : "mine";
+  const tab: Tab = rawTab === "shared" ? "shared" : rawTab === "trash" ? "trash" : "mine";
 
-  const [mine, shared] = await Promise.all([listMine(user), listSharedWithMe(user)]);
-  const items = tab === "mine" ? mine : shared;
+  // Belt and braces alongside the daily cron: expire old trash whenever someone looks.
+  await purgeExpiredTrash().catch((e) => console.error("[trash]", e));
+
+  const [mine, shared, trash] = await Promise.all([listMine(user), listSharedWithMe(user), listTrash(user)]);
 
   return (
     <>
@@ -21,9 +26,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Artifacts</h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Static copies of Claude artifacts. Nothing re-runs when they load.
-            </p>
+            <p className="mt-1 text-sm text-neutral-500">Static copies of Claude artifacts. Nothing re-runs when they load.</p>
           </div>
           <Link href="/upload" className="btn-primary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -36,16 +39,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <div className="mt-6 flex gap-1 border-b border-neutral-200">
           <Tab href="/" active={tab === "mine"} label="My artifacts" count={mine.length} />
           <Tab href="/?tab=shared" active={tab === "shared"} label="Shared with me" count={shared.length} />
+          <Tab href="/?tab=trash" active={tab === "trash"} label={user.isAdmin ? "Trash (all)" : "Trash"} count={trash.length} />
         </div>
 
-        {items.length === 0 ? (
+        {tab === "trash" ? (
+          <TrashList items={trash} retentionDays={TRASH_RETENTION_DAYS} showOwner={user.isAdmin} />
+        ) : (tab === "mine" ? mine : shared).length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((a) => (
-              <ArtifactCard key={a.id} artifact={a} showOwner={tab === "shared"} />
-            ))}
-          </div>
+          <ArtifactGrid items={tab === "mine" ? mine : shared} showOwner={tab === "shared"} domain={ALLOWED_EMAIL_DOMAIN} />
         )}
       </main>
     </>
@@ -62,11 +64,7 @@ function Tab({ href, active, label, count }: { href: string; active: boolean; la
       }`}
     >
       {label}
-      <span
-        className={`rounded-full px-1.5 text-[11px] leading-4 ${
-          active ? "bg-brand-100 text-brand-800" : "bg-neutral-100 text-neutral-600"
-        }`}
-      >
+      <span className={`rounded-full px-1.5 text-[11px] leading-4 ${active ? "bg-brand-100 text-brand-800" : "bg-neutral-100 text-neutral-600"}`}>
         {count}
       </span>
     </Link>

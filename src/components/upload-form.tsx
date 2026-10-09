@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { ChipsInput } from "@/components/chips";
 import { VisibilityPicker } from "@/components/visibility-picker";
 import { formatBytes } from "@/lib/format";
 import { extractTitle } from "@/lib/html";
@@ -11,6 +12,9 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [titleTouched, setTitleTouched] = useState(false);
+  const [description, setDescription] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<"domain" | "restricted">("domain");
   const [shares, setShares] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -51,17 +55,20 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
     const fd = new FormData();
     fd.set("file", file);
     fd.set("title", title.trim());
+    fd.set("description", description.trim());
+    fd.set("sourceUrl", sourceUrl.trim());
+    fd.set("tags", tags.join(","));
     fd.set("visibility", visibility);
     fd.set("shares", shares.join(","));
     try {
       const res = await fetch("/api/artifacts", { method: "POST", body: fd });
-      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
-      if (!res.ok || !data.id) {
+      const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string };
+      if (!res.ok || !data.slug) {
         setError(data.error ?? `Upload failed (${res.status})`);
         setStatus("idle");
         return;
       }
-      router.push(`/a/${data.id}`);
+      router.push(`/a/${data.slug}`);
     } catch {
       setError("Network error — check your connection and try again.");
       setStatus("idle");
@@ -100,9 +107,7 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
           {file ? (
             <>
               <p className="text-sm font-medium text-neutral-900">{file.name}</p>
-              <p className="text-xs text-neutral-500">
-                {formatBytes(file.size)} · click to choose a different file
-              </p>
+              <p className="text-xs text-neutral-500">{formatBytes(file.size)} · click to choose a different file</p>
             </>
           ) : (
             <>
@@ -113,9 +118,7 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
               <p className="text-sm text-neutral-700">
                 <span className="font-medium text-brand-700">Choose a file</span> or drag it here
               </p>
-              <p className="text-xs text-neutral-500">
-                The .html you downloaded from Claude · up to {formatBytes(maxBytes)}
-              </p>
+              <p className="text-xs text-neutral-500">The .html you downloaded from Claude · up to {formatBytes(maxBytes)}</p>
             </>
           )}
         </div>
@@ -136,7 +139,45 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
             setTitleTouched(true);
           }}
         />
-        <p className="help">Pulled from the file&apos;s title automatically; edit if you like.</p>
+        <p className="help">Pulled from the file&apos;s title automatically. The link is made from this name.</p>
+      </div>
+
+      <div>
+        <label htmlFor="description" className="label">
+          Description <span className="font-normal text-neutral-500">(optional)</span>
+        </label>
+        <textarea
+          id="description"
+          className="input min-h-[72px] resize-y"
+          value={description}
+          maxLength={1000}
+          placeholder="What is this, and what should people look at?"
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label htmlFor="sourceUrl" className="label">
+            Source link <span className="font-normal text-neutral-500">(optional)</span>
+          </label>
+          <input
+            id="sourceUrl"
+            type="url"
+            className="input"
+            value={sourceUrl}
+            placeholder="https://claude.ai/chat/…"
+            onChange={(e) => setSourceUrl(e.target.value)}
+          />
+          <p className="help">The Claude conversation or doc this came from.</p>
+        </div>
+        <div>
+          <label className="label">
+            Tags <span className="font-normal text-neutral-500">(optional)</span>
+          </label>
+          <ChipsInput value={tags} onChange={setTags} placeholder="sales, q3, renewals" />
+          <p className="help">Press Enter or comma after each tag.</p>
+        </div>
       </div>
 
       <VisibilityPicker

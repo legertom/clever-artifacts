@@ -1,11 +1,11 @@
-import { ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
-
 export function VisibilityBadge({
   visibility,
   sharedDirectly,
+  domain,
 }: {
   visibility: "domain" | "restricted";
   sharedDirectly?: boolean;
+  domain: string;
 }) {
   if (sharedDirectly) {
     return (
@@ -17,7 +17,7 @@ export function VisibilityBadge({
   if (visibility === "domain") {
     return (
       <span className="badge border-brand-200 bg-brand-50 text-brand-800">
-        <Dot className="bg-brand-500" /> Everyone @{ALLOWED_EMAIL_DOMAIN}
+        <Dot className="bg-brand-500" /> Everyone @{domain}
       </span>
     );
   }

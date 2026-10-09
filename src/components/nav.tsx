@@ -17,6 +17,14 @@ export function Nav({ user }: { user: SessionUser }) {
             <Link href="/upload" className="btn-ghost px-3 py-1.5">
               Upload
             </Link>
+            <Link href="/settings/mcp" className="btn-ghost px-3 py-1.5">
+              MCP
+            </Link>
+            {user.isAdmin ? (
+              <Link href="/admin" className="btn-ghost px-3 py-1.5">
+                Admin
+              </Link>
+            ) : null}
           </nav>
         </div>
         <div className="flex items-center gap-3">

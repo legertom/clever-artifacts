@@ -1,11 +1,6 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { artifacts } from "@/db/schema";
-import { getOwnedArtifact } from "@/lib/artifacts";
+import { replaceArtifactHtml, resolveForUser, ServiceError } from "@/lib/artifact-service";
 import { MAX_HTML_BYTES } from "@/lib/config";
-import { generateAndStoreScreenshot } from "@/lib/generate-screenshot";
-import { looksLikeHtml } from "@/lib/html";
 import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -18,10 +13,6 @@ export async function PUT(req: Request, { params }: Ctx) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
-  const owned = await getOwnedArtifact(id, user);
-  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) {
@@ -33,22 +24,14 @@ export async function PUT(req: Request, { params }: Ctx) {
       { status: 413 },
     );
   }
-  const html = await file.text();
-  if (!html.trim() || !looksLikeHtml(html)) {
-    return NextResponse.json({ error: "That file doesn't look like an HTML document" }, { status: 400 });
+
+  try {
+    const id = await resolveForUser((await params).id);
+    const r = await replaceArtifactHtml(user, id, await file.text());
+    return NextResponse.json(r);
+  } catch (e) {
+    if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: e.status });
+    console.error(e);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
-
-  await db
-    .update(artifacts)
-    .set({
-      html,
-      htmlBytes: Buffer.byteLength(html, "utf8"),
-      screenshotStatus: "pending",
-      screenshotError: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(artifacts.id, id));
-
-  const screenshotOk = await generateAndStoreScreenshot(id, html);
-  return NextResponse.json({ id, screenshotOk });
 }

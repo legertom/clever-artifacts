@@ -1,54 +1,78 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/db";
-import { artifacts } from "@/db/schema";
-import { getOwnedArtifact, parseShareEmails, setShares } from "@/lib/artifacts";
+import {
+  deleteForever,
+  moveToTrash,
+  restoreFromTrash,
+  ServiceError,
+  updateArtifact as updateArtifactService,
+  type UpdateInput,
+} from "@/lib/artifact-service";
 import { getSessionUser } from "@/lib/session";
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ActionResult = { ok: true; slug?: string } | { ok: false; error: string };
 
-export async function updateArtifact(
-  id: string,
-  input: { title: string; visibility: "domain" | "restricted"; shares: string[] },
-): Promise<ActionResult> {
-  const user = await getSessionUser();
-  if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
-
-  const owned = await getOwnedArtifact(id, user);
-  if (!owned) return { ok: false, error: "Artifact not found." };
-
-  const title = input.title.trim().slice(0, 200);
-  if (!title) return { ok: false, error: "Give the artifact a name." };
-
-  const visibility = input.visibility === "restricted" ? "restricted" : "domain";
-  const { emails, rejected } = parseShareEmails(input.shares, user.email);
-  if (rejected.length) {
-    return { ok: false, error: `These addresses can't be shared with: ${rejected.join(", ")}` };
-  }
-
-  await db
-    .update(artifacts)
-    .set({ title, visibility, updatedAt: new Date() })
-    .where(eq(artifacts.id, id));
-  await setShares(id, emails);
-
-  revalidatePath("/");
-  revalidatePath(`/a/${id}`);
-  revalidatePath(`/a/${id}/settings`);
-  return { ok: true };
+function errorResult(err: unknown): ActionResult {
+  if (err instanceof ServiceError) return { ok: false, error: err.message };
+  console.error(err);
+  return { ok: false, error: "Something went wrong. Try again." };
 }
 
-export async function deleteArtifact(id: string): Promise<ActionResult> {
+function revalidateArtifact(slug: string) {
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath(`/a/${slug}`);
+  revalidatePath(`/a/${slug}/settings`);
+}
+
+export async function updateArtifact(id: string, input: UpdateInput): Promise<ActionResult> {
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
+  try {
+    const r = await updateArtifactService(user, id, input);
+    revalidateArtifact(r.slug);
+    return { ok: true, slug: r.slug };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
 
-  const owned = await getOwnedArtifact(id, user);
-  if (!owned) return { ok: false, error: "Artifact not found." };
+export async function trashArtifactAction(id: string): Promise<ActionResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
+  try {
+    const r = await moveToTrash(user, id);
+    revalidateArtifact(r.slug);
+    return { ok: true, slug: r.slug };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
 
-  await db.delete(artifacts).where(eq(artifacts.id, id));
+export async function restoreArtifactAction(id: string): Promise<ActionResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
+  try {
+    const r = await restoreFromTrash(user, id);
+    revalidateArtifact(r.slug);
+    return { ok: true, slug: r.slug };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+export async function deleteArtifactForeverAction(id: string, redirectTo?: string): Promise<ActionResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
+  try {
+    await deleteForever(user, id);
+  } catch (e) {
+    return errorResult(e);
+  }
   revalidatePath("/");
-  redirect("/");
+  revalidatePath("/admin");
+  if (redirectTo) redirect(redirectTo);
+  return { ok: true };
 }

@@ -14,16 +14,19 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
     "@neondatabase/serverless": "^1.2.0",
     "@sparticuz/chromium": "^153.0.0",
     "drizzle-orm": "^0.45.4",
+    "mcp-handler": "^2.3.0",
     "nanoid": "^6.0.2",
     "next": "16.4.0",
     "next-auth": "^5.0.0-beta.32",
     "puppeteer-core": "25.11.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

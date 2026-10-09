@@ -31,7 +31,8 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    // Everything except Auth.js routes, Next internals, and static files.
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
+    // Everything except: Auth.js routes, the MCP endpoint and OAuth token/registration
+    // endpoints (bearer / client auth), well-known metadata, cron, Next internals, static files.
+    "/((?!api/auth|api/mcp|api/cron|oauth/token|oauth/register|oauth/revoke|\\.well-known|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
   ],
 };

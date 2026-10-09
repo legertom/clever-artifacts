@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>District Renewals – Q3 FY27 Snapshot</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f6f8fb; --card:#fff; --ink:#0f172a; --muted:#64748b; --brand:#1d4ed8; --line:#e2e8f0; }
+  * { box-sizing:border-box }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:28px 32px 8px; }
+  h1 { margin:0; font-size:24px; letter-spacing:-.01em }
+  .sub { color:var(--muted); margin-top:6px; font-size:14px }
+  .grid { display:grid; gap:16px; padding:16px 32px 32px; grid-template-columns: repeat(4, 1fr); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .kpi .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em }
+  .kpi .value { font-size:30px; font-weight:600; margin-top:6px }
+  .kpi .delta { font-size:12px; margin-top:4px }
+  .up { color:#047857 } .down { color:#b91c1c }
+  .wide { grid-column: span 2; }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line) }
+  th { color:var(--muted); font-weight:500 }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:#eef2ff; color:#3730a3 }
+  footer { padding:0 32px 28px; color:var(--muted); font-size:12px }
+</style>
+</head>
+<body>
+<header>
+  <h1>District Renewals – Q3 FY27 Snapshot</h1>
+  <div class="sub">Static export · data as of Oct 8, 2026 · sample artifact for testing Clever Artifacts</div>
+</header>
+<section class="grid">
+  <div class="card kpi"><div class="label">Renewal rate</div><div class="value">94.2%</div><div class="delta up">▲ 1.3 pts vs Q2</div></div>
+  <div class="card kpi"><div class="label">Districts up for renewal</div><div class="value">1,284</div><div class="delta">312 closed this week</div></div>
+  <div class="card kpi"><div class="label">ARR at risk</div><div class="value">$2.1M</div><div class="delta down">▼ 18% vs Q2</div></div>
+  <div class="card kpi"><div class="label">Median days to close</div><div class="value">11</div><div class="delta up">▲ 2 days faster</div></div>
+
+  <div class="card wide"><canvas id="trend" height="130"></canvas></div>
+  <div class="card wide"><canvas id="bySegment" height="130"></canvas></div>
+
+  <div class="card wide">
+    <table>
+      <thead><tr><th>Region</th><th>Renewed</th><th>Pending</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>Northeast</td><td>318</td><td>41</td><td><span class="pill">A. Rivera</span></td></tr>
+        <tr><td>Southeast</td><td>276</td><td>29</td><td><span class="pill">J. Okafor</span></td></tr>
+        <tr><td>Midwest</td><td>251</td><td>37</td><td><span class="pill">M. Chen</span></td></tr>
+        <tr><td>West</td><td>304</td><td>28</td><td><span class="pill">S. Patel</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card wide"><canvas id="funnel" height="130"></canvas></div>
+</section>
+<footer>Numbers are illustrative.</footer>
+<script>
+  const brand = '#1d4ed8', soft = '#93c5fd', gray = '#cbd5e1';
+  const common = { animation: false, responsive: true, plugins: { legend: { position: 'bottom' } } };
+  new Chart(document.getElementById('trend'), { type: 'line', options: { ...common, plugins: { ...common.plugins, title: { display: true, text: 'Weekly renewals' } } },
+    data: { labels: ['W1','W2','W3','W4','W5','W6','W7','W8'], datasets: [{ label: 'Renewed', data: [88,121,134,152,171,198,240,312], borderColor: brand, backgroundColor: brand, tension: .3 }, { label: 'Target', data: [100,120,140,160,180,200,230,260], borderColor: gray, borderDash: [4,4], pointRadius: 0 }] } });
+  new Chart(document.getElementById('bySegment'), { type: 'bar', options: { ...common, plugins: { ...common.plugins, title: { display: true, text: 'Renewal rate by segment' } }, scales: { y: { min: 80, max: 100 } } },
+    data: { labels: ['Enterprise','Mid-market','Small'], datasets: [{ label: 'Q2', data: [95.1, 92.4, 90.2], backgroundColor: soft }, { label: 'Q3', data: [96.0, 94.1, 92.3], backgroundColor: brand }] } });
+  new Chart(document.getElementById('funnel'), { type: 'bar', options: { ...common, indexAxis: 'y', plugins: { ...common.plugins, title: { display: true, text: 'Pipeline' }, legend: { display: false } } },
+    data: { labels: ['Notified','Engaged','Quote sent','Signed'], datasets: [{ data: [1284, 1101, 942, 890], backgroundColor: [gray, soft, soft, brand] }] } });
+</script>
+</body>
+</html>

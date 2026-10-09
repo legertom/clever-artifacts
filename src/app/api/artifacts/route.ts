@@ -1,11 +1,6 @@
-import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { artifacts } from "@/db/schema";
-import { parseShareEmails, setShares } from "@/lib/artifacts";
+import { createArtifact, ServiceError } from "@/lib/artifact-service";
 import { MAX_HTML_BYTES } from "@/lib/config";
-import { generateAndStoreScreenshot } from "@/lib/generate-screenshot";
-import { extractTitle, looksLikeHtml } from "@/lib/html";
 import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -33,38 +28,27 @@ export async function POST(req: Request) {
       { status: 413 },
     );
   }
-  const html = await file.text();
-  if (!html.trim() || !looksLikeHtml(html)) {
-    return NextResponse.json({ error: "That file doesn't look like an HTML document" }, { status: 400 });
+
+  const str = (k: string) => {
+    const v = form.get(k);
+    return typeof v === "string" ? v : null;
+  };
+
+  try {
+    const r = await createArtifact(user, {
+      html: await file.text(),
+      fileName: file.name,
+      title: str("title"),
+      description: str("description"),
+      sourceUrl: str("sourceUrl"),
+      tags: str("tags"),
+      visibility: str("visibility"),
+      shares: str("shares"),
+    });
+    return NextResponse.json(r, { status: 201 });
+  } catch (e) {
+    if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: e.status });
+    console.error(e);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
-
-  const title =
-    String(form.get("title") ?? "").trim().slice(0, 200) ||
-    extractTitle(html) ||
-    file.name.replace(/\.html?$/i, "") ||
-    "Untitled artifact";
-
-  const visibility = form.get("visibility") === "restricted" ? "restricted" : "domain";
-  const { emails, rejected } = parseShareEmails(String(form.get("shares") ?? ""), user.email);
-  if (rejected.length) {
-    return NextResponse.json(
-      { error: `These addresses can't be shared with: ${rejected.join(", ")}` },
-      { status: 400 },
-    );
-  }
-
-  const id = nanoid(12);
-  await db.insert(artifacts).values({
-    id,
-    ownerId: user.id,
-    title,
-    visibility,
-    html,
-    htmlBytes: Buffer.byteLength(html, "utf8"),
-  });
-  await setShares(id, emails);
-
-  const screenshotOk = await generateAndStoreScreenshot(id, html);
-
-  return NextResponse.json({ id, screenshotOk }, { status: 201 });
 }

@@ -1,9 +1,6 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { artifacts } from "@/db/schema";
-import { getArtifactScreenshot, getOwnedArtifact } from "@/lib/artifacts";
-import { generateAndStoreScreenshot } from "@/lib/generate-screenshot";
+import { regeneratePreview, resolveForUser, ServiceError } from "@/lib/artifact-service";
+import { getArtifactScreenshot } from "@/lib/artifacts";
 import { getSessionUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -16,7 +13,12 @@ export async function GET(_req: Request, { params }: Ctx) {
   const user = await getSessionUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { id } = await params;
+  let id: string;
+  try {
+    id = await resolveForUser((await params).id);
+  } catch {
+    return new NextResponse("Not found", { status: 404 });
+  }
   const row = await getArtifactScreenshot(id, user);
   if (!row) return new NextResponse("Not found", { status: 404 });
   if (!row.screenshot) return new NextResponse("No preview yet", { status: 404 });
@@ -31,38 +33,16 @@ export async function GET(_req: Request, { params }: Ctx) {
   });
 }
 
-/** Regenerate the preview (owner only). */
+/** Regenerate the preview (owner or admin). */
 export async function POST(_req: Request, { params }: Ctx) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  const owned = await getOwnedArtifact(id, user);
-  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const [row] = await db
-    .select({ html: artifacts.html })
-    .from(artifacts)
-    .where(eq(artifacts.id, id))
-    .limit(1);
-  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await db
-    .update(artifacts)
-    .set({ screenshotStatus: "pending", screenshotError: null, updatedAt: new Date() })
-    .where(eq(artifacts.id, id));
-
-  const ok = await generateAndStoreScreenshot(id, row.html);
-  if (!ok) {
-    const [after] = await db
-      .select({ error: artifacts.screenshotError })
-      .from(artifacts)
-      .where(eq(artifacts.id, id))
-      .limit(1);
-    return NextResponse.json(
-      { error: after?.error ?? "Preview generation failed" },
-      { status: 500 },
-    );
+  try {
+    const id = await resolveForUser((await params).id);
+    return NextResponse.json(await regeneratePreview(user, id));
+  } catch (e) {
+    if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: e.status });
+    console.error(e);
+    return NextResponse.json({ error: "Preview generation failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
 }
