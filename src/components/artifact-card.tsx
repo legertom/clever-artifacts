@@ -8,12 +8,16 @@ export function ArtifactCard({
   artifact,
   showOwner,
   domain,
+  viewerId,
 }: {
   artifact: ArtifactSummary;
   showOwner: boolean;
   domain: string;
+  /** When given, the viewer's own artifacts are labelled "Yours" instead of the owner's name. */
+  viewerId?: string;
 }) {
   const a = artifact;
+  const isMine = viewerId !== undefined && a.ownerId === viewerId;
   const previewSrc = `/api/artifacts/${a.id}/screenshot?v=${a.updatedAt.getTime()}`;
   return (
     <Link
@@ -58,7 +62,12 @@ export function ArtifactCard({
         ) : null}
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <div className="flex min-w-0 items-center gap-2 text-xs text-neutral-500">
-            {showOwner ? (
+            {showOwner && isMine ? (
+              <>
+                <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-700">Yours</span>
+                <span aria-hidden>·</span>
+              </>
+            ) : showOwner ? (
               <>
                 <Avatar name={a.ownerName} email={a.ownerEmail} image={a.ownerImage} size={18} />
                 <span className="truncate">{a.ownerName ?? a.ownerEmail}</span>

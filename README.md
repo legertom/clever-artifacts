@@ -8,7 +8,9 @@ Live at **https://clever-artifacts.vercel.app** (Vercel project `clever-artifact
 GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
 
 - **Dashboard** – *My artifacts*, *Shared with me* (company-wide or shared directly),
-  and *Trash*, with search by name, description, `#tag` or person.
+  and *Trash*.
+- **Search** (`/search`, box in every header) – across everything you can open: yours,
+  shared with you, and company-wide; by name, description, `#tag` or person.
 - **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
   editable later, and old links keep redirecting.
 - **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
@@ -120,6 +122,6 @@ src/
 - **Claude Code**: `claude mcp add --transport http clever-artifacts https://clever-artifacts.vercel.app/api/mcp`
   then `/mcp` to sign in, or pass `--header "Authorization: Bearer <personal token>"`.
 
-Tools: `whoami`, `list_artifacts`, `get_artifact`, `get_artifact_html`, `create_artifact`,
+Tools: `whoami`, `list_artifacts`, `search_artifacts`, `get_artifact`, `get_artifact_html`, `create_artifact`,
 `update_artifact`, `replace_artifact_html`, `regenerate_preview`, `trash_artifact`,
 `restore_artifact`, `delete_artifact_permanently`, `list_people`, `admin_overview`.

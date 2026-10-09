@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gte, ilike, isNotNull, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artifactAliases,
@@ -133,6 +133,195 @@ export async function listTrash(user: SessionUser): Promise<ArtifactSummary[]> {
       and(isNotNull(artifacts.trashedAt), user.isAdmin ? undefined : eq(artifacts.ownerId, user.id)),
     )
     .orderBy(asc(artifacts.trashedAt));
+}
+
+/** Split a query into terms; `#tag` terms match tags exactly, others match text. */
+export function parseSearchQuery(query: string): { text: string[]; tags: string[] } {
+  const terms = query.trim().split(/\s+/).filter(Boolean).slice(0, 8);
+  const tags: string[] = [];
+  const text: string[] = [];
+  for (const t of terms) {
+    if (t.startsWith("#") && t.length > 1) tags.push(t.slice(1).toLowerCase());
+    else text.push(t);
+  }
+  return { text, tags };
+}
+
+function likePattern(term: string): string {
+  return `%${term.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+}
+
+export const SCOPES = ["all", "mine", "others", "direct", "company"] as const;
+export type Scope = (typeof SCOPES)[number];
+export const SCOPE_LABELS: Record<Scope, string> = {
+  all: "All",
+  mine: "Mine",
+  others: "From others",
+  direct: "Shared with me directly",
+  company: "Open to everyone",
+};
+
+export const SORTS = [
+  "relevance",
+  "updated",
+  "updated_asc",
+  "created",
+  "created_asc",
+  "title",
+  "title_desc",
+  "views",
+  "views_asc",
+  "last_viewed",
+  "size",
+  "size_asc",
+  "owner",
+] as const;
+export type Sort = (typeof SORTS)[number];
+export const SORT_LABELS: Record<Sort, string> = {
+  relevance: "Best match",
+  updated: "Recently updated",
+  updated_asc: "Least recently updated",
+  created: "Newest",
+  created_asc: "Oldest",
+  title: "Name A→Z",
+  title_desc: "Name Z→A",
+  views: "Most viewed",
+  views_asc: "Least viewed",
+  last_viewed: "Recently viewed",
+  size: "Largest file",
+  size_asc: "Smallest file",
+  owner: "Owner A→Z",
+};
+
+export type ArtifactQuery = {
+  q?: string;
+  scope?: Scope;
+  /** Owner email. */
+  owner?: string;
+  /** All of these tags must be present. */
+  tags?: string[];
+  visibility?: ArtifactVisibility;
+  updatedWithinDays?: number;
+  createdWithinDays?: number;
+  preview?: "ready" | "missing";
+  minViews?: number;
+  sort?: Sort;
+  limit?: number;
+};
+
+function daysAgo(n: number): Date {
+  return new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Everything this user may open (own, shared directly, company-wide), minus
+ * trash, filtered and sorted. Text terms must all match (title, description,
+ * tags, owner); `#tag` in the query requires that exact tag.
+ */
+export async function queryArtifacts(user: SessionUser, query: ArtifactQuery = {}): Promise<ArtifactSummary[]> {
+  const email = normalizeEmail(user.email);
+  const direct = sharedWithEmail(email);
+  const mine = eq(artifacts.ownerId, user.id);
+  const company = eq(artifacts.visibility, "domain");
+
+  const scopeCond: Record<Scope, SQL | undefined> = {
+    all: or(mine, company, direct),
+    mine,
+    others: and(ne(artifacts.ownerId, user.id), or(company, direct)),
+    direct: and(ne(artifacts.ownerId, user.id), direct),
+    company: and(ne(artifacts.ownerId, user.id), company),
+  };
+
+  const conditions: (SQL | undefined)[] = [isNull(artifacts.trashedAt), scopeCond[query.scope ?? "all"]];
+
+  const { text, tags: queryTags } = parseSearchQuery(query.q ?? "");
+  for (const term of text) {
+    const pat = likePattern(term);
+    conditions.push(
+      or(
+        ilike(artifacts.title, pat),
+        ilike(artifacts.description, pat),
+        ilike(users.name, pat),
+        ilike(users.email, pat),
+        sql`array_to_string(${artifacts.tags}, ' ') ilike ${pat}`,
+      ),
+    );
+  }
+  for (const tag of [...queryTags, ...(query.tags ?? []).map((t) => t.toLowerCase())]) {
+    conditions.push(sql`${tag} = any(${artifacts.tags})`);
+  }
+  if (query.owner) conditions.push(eq(users.email, normalizeEmail(query.owner)));
+  if (query.visibility) conditions.push(eq(artifacts.visibility, query.visibility));
+  if (query.updatedWithinDays) conditions.push(gte(artifacts.updatedAt, daysAgo(query.updatedWithinDays)));
+  if (query.createdWithinDays) conditions.push(gte(artifacts.createdAt, daysAgo(query.createdWithinDays)));
+  if (query.preview === "ready") conditions.push(eq(artifacts.screenshotStatus, "ready"));
+  if (query.preview === "missing") conditions.push(ne(artifacts.screenshotStatus, "ready"));
+  if (query.minViews) conditions.push(gte(artifacts.viewCount, query.minViews));
+
+  const sort: Sort = query.sort ?? (text.length || queryTags.length ? "relevance" : "updated");
+  const titlePat = likePattern(text.join(" ") || queryTags[0] || "");
+  const rank = sql<number>`case when ${artifacts.title} ilike ${titlePat} then 0 else 1 end`;
+  const order: SQL[] = {
+    relevance: text.length || queryTags.length ? [rank, desc(artifacts.updatedAt)] : [desc(artifacts.updatedAt)],
+    updated: [desc(artifacts.updatedAt)],
+    updated_asc: [asc(artifacts.updatedAt)],
+    created: [desc(artifacts.createdAt)],
+    created_asc: [asc(artifacts.createdAt)],
+    title: [asc(sql`lower(${artifacts.title})`)],
+    title_desc: [desc(sql`lower(${artifacts.title})`)],
+    views: [desc(artifacts.viewCount), desc(artifacts.updatedAt)],
+    views_asc: [asc(artifacts.viewCount), desc(artifacts.updatedAt)],
+    last_viewed: [sql`${artifacts.lastViewedAt} desc nulls last`],
+    size: [desc(artifacts.htmlBytes)],
+    size_asc: [asc(artifacts.htmlBytes)],
+    owner: [asc(sql`lower(coalesce(${users.name}, ${users.email}))`), desc(artifacts.updatedAt)],
+  }[sort];
+
+  return db
+    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`${direct}` })
+    .from(artifacts)
+    .innerJoin(users, eq(users.id, artifacts.ownerId))
+    .where(and(...conditions.filter((c): c is SQL => Boolean(c))))
+    .orderBy(...order)
+    .limit(Math.min(Math.max(query.limit ?? 60, 1), 200));
+}
+
+/** Convenience wrapper: text search across everything accessible. */
+export async function searchArtifacts(user: SessionUser, q: string, limit = 60): Promise<ArtifactSummary[]> {
+  const parsed = parseSearchQuery(q);
+  if (!parsed.text.length && !parsed.tags.length) return [];
+  return queryArtifacts(user, { q, limit });
+}
+
+export type Facets = {
+  owners: { email: string; name: string | null; count: number }[];
+  tags: { tag: string; count: number }[];
+};
+
+/** Distinct owners and tags across everything the user can open (for filter menus). */
+export async function artifactFacets(user: SessionUser): Promise<Facets> {
+  const direct = sharedWithEmail(normalizeEmail(user.email));
+  const access = and(
+    isNull(artifacts.trashedAt),
+    or(eq(artifacts.ownerId, user.id), eq(artifacts.visibility, "domain"), direct),
+  );
+  const [owners, tags] = await Promise.all([
+    db
+      .select({ email: users.email, name: users.name, count: count() })
+      .from(artifacts)
+      .innerJoin(users, eq(users.id, artifacts.ownerId))
+      .where(access)
+      .groupBy(users.email, users.name)
+      .orderBy(asc(sql`lower(coalesce(${users.name}, ${users.email}))`)),
+    db
+      .select({ tag: sql<string>`t.tag`, count: count() })
+      .from(sql`${artifacts} cross join lateral unnest(${artifacts.tags}) as t(tag)`)
+      .where(access)
+      .groupBy(sql`t.tag`)
+      .orderBy(desc(count()), asc(sql`t.tag`))
+      .limit(40),
+  ]);
+  return { owners, tags };
 }
 
 // ---------------------------------------------------------------------------

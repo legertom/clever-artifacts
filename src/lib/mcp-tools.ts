@@ -18,10 +18,11 @@ import {
 import {
   getArtifactForViewer,
   getArtifactHtml,
-  listMine,
-  listSharedWithMe,
   listTrash,
   purgeDate,
+  queryArtifacts,
+  SCOPES,
+  SORTS,
   type ArtifactSummary,
 } from "@/lib/artifacts";
 import { ALLOWED_EMAIL_DOMAIN, TRASH_RETENTION_DAYS } from "@/lib/config";
@@ -96,19 +97,22 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     {
       title: "List artifacts",
       description:
-        "List artifacts. scope=mine (yours), shared (visible to you from others: company-wide or shared directly), trash (your trash; admins see everyone's). Optional query filters by title, description, tags or owner.",
+        "List artifacts. scope=mine (yours), shared (visible to you from others: company-wide or shared directly), trash (your trash; admins see everyone's). Optional query and sort; use search_artifacts for the full set of filters.",
       inputSchema: z.object({
         scope: z.enum(["mine", "shared", "trash"]).default("mine"),
         query: z.string().optional(),
+        sort: z.enum(SORTS).optional(),
         limit: z.number().int().min(1).max(200).default(50),
       }),
     },
-    async ({ scope, query, limit }, ctx) => {
+    async ({ scope, query, sort, limit }, ctx) => {
       try {
         const user = userFrom(ctx);
         let rows =
-          scope === "mine" ? await listMine(user) : scope === "shared" ? await listSharedWithMe(user) : await listTrash(user);
-        if (query) {
+          scope === "trash"
+            ? await listTrash(user)
+            : await queryArtifacts(user, { scope: scope === "mine" ? "mine" : "others", q: query, sort, limit: 200 });
+        if (scope === "trash" && query) {
           const q = query.toLowerCase();
           rows = rows.filter((a) =>
             [a.title, a.description ?? "", a.tags.join(" "), a.ownerName ?? "", a.ownerEmail].join(" ").toLowerCase().includes(q),
@@ -120,6 +124,53 @@ export function registerArtifactTools(server: McpServer, origin: string) {
           note:
             scope === "trash" ? `Items are deleted permanently ${TRASH_RETENTION_DAYS} days after being trashed.` : undefined,
           artifacts: rows.slice(0, limit).map((a) => summarize(origin, a)),
+        });
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "search_artifacts",
+    {
+      title: "Search artifacts",
+      description:
+        "Search everything you can open: your own artifacts, ones shared with you directly, and ones open to everyone at the company. Matches title, description, tags and owner; every word must match, and #tag matches a tag exactly. Private artifacts belonging to others are never returned.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Words to match; omit to browse with filters only."),
+        scope: z.enum(SCOPES).default("all").describe("all | mine | others (anything from others you can see) | direct (shared with you by name) | company (open to everyone)"),
+        owner: z.string().optional().describe("Owner's email address."),
+        tags: z.array(z.string()).optional().describe("Every listed tag must be present."),
+        visibility: z.enum(["private", "domain", "restricted"]).optional(),
+        updated_within_days: z.number().int().min(1).max(3650).optional(),
+        created_within_days: z.number().int().min(1).max(3650).optional(),
+        min_views: z.number().int().min(0).optional(),
+        has_preview: z.boolean().optional(),
+        sort: z.enum(SORTS).optional().describe("Default: relevance when a query is given, otherwise recently updated."),
+        limit: z.number().int().min(1).max(200).default(25),
+      }),
+    },
+    async (args, ctx) => {
+      try {
+        const user = userFrom(ctx);
+        const rows = await queryArtifacts(user, {
+          q: args.query,
+          scope: args.scope,
+          owner: args.owner,
+          tags: args.tags,
+          visibility: args.visibility,
+          updatedWithinDays: args.updated_within_days,
+          createdWithinDays: args.created_within_days,
+          minViews: args.min_views,
+          preview: args.has_preview === undefined ? undefined : args.has_preview ? "ready" : "missing",
+          sort: args.sort,
+          limit: args.limit,
+        });
+        return json({
+          query: args.query ?? null,
+          count: rows.length,
+          artifacts: rows.map((a) => ({ ...summarize(origin, a), yours: a.ownerId === user.id || undefined })),
         });
       } catch (e) {
         return fail(e);

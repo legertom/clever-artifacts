@@ -1,23 +1,37 @@
 import Link from "next/link";
-import { ArtifactGrid } from "@/components/artifact-grid";
+import { ArtifactCard } from "@/components/artifact-card";
+import { FilterBar } from "@/components/filter-bar";
 import { Nav } from "@/components/nav";
+import { SearchForm } from "@/components/search-form";
 import { TrashList } from "@/components/trash-list";
-import { listMine, listSharedWithMe, listTrash, purgeExpiredTrash } from "@/lib/artifacts";
+import { artifactFacets, listMine, listSharedWithMe, listTrash, purgeExpiredTrash, queryArtifacts } from "@/lib/artifacts";
 import { ALLOWED_EMAIL_DOMAIN, TRASH_RETENTION_DAYS } from "@/lib/config";
+import { activeFilterCount, parseArtifactParams, type RawParams } from "@/lib/search-params";
 import { requireUser } from "@/lib/session";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+type SearchParams = Promise<RawParams>;
 type Tab = "mine" | "shared" | "trash";
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser();
-  const { tab: rawTab } = await searchParams;
-  const tab: Tab = rawTab === "shared" ? "shared" : rawTab === "trash" ? "trash" : "mine";
+  const sp = await searchParams;
+  const tab: Tab = sp.tab === "shared" ? "shared" : sp.tab === "trash" ? "trash" : "mine";
 
   // Belt and braces alongside the daily cron: expire old trash whenever someone looks.
   await purgeExpiredTrash().catch((e) => console.error("[trash]", e));
 
-  const [mine, shared, trash] = await Promise.all([listMine(user), listSharedWithMe(user), listTrash(user)]);
+  const params = parseArtifactParams({ ...sp, q: undefined, scope: tab === "shared" ? "others" : "mine" });
+  const filtering = activeFilterCount(params, true) > 0 || Boolean(params.sort);
+
+  const [mine, shared, trash, facets, filtered] = await Promise.all([
+    listMine(user),
+    listSharedWithMe(user),
+    listTrash(user),
+    artifactFacets(user),
+    tab === "trash" ? Promise.resolve([]) : queryArtifacts(user, { ...params, limit: 200 }),
+  ]);
+  const base = tab === "mine" ? mine : shared;
+  const items = filtering ? filtered : base;
 
   return (
     <>
@@ -36,25 +50,51 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </Link>
         </div>
 
-        <div className="mt-6 flex gap-1 border-b border-neutral-200">
-          <Tab href="/" active={tab === "mine"} label="My artifacts" count={mine.length} />
-          <Tab href="/?tab=shared" active={tab === "shared"} label="Shared with me" count={shared.length} />
-          <Tab href="/?tab=trash" active={tab === "trash"} label={user.isAdmin ? "Trash (all)" : "Trash"} count={trash.length} />
+        <SearchForm className="mt-6 max-w-xl" />
+
+        <div className="mt-5 flex gap-1 border-b border-neutral-200">
+          <TabLink href="/" active={tab === "mine"} label="My artifacts" count={mine.length} />
+          <TabLink href="/?tab=shared" active={tab === "shared"} label="Shared with me" count={shared.length} />
+          <TabLink href="/?tab=trash" active={tab === "trash"} label={user.isAdmin ? "Trash (all)" : "Trash"} count={trash.length} />
         </div>
 
         {tab === "trash" ? (
           <TrashList items={trash} retentionDays={TRASH_RETENTION_DAYS} showOwner={user.isAdmin} />
-        ) : (tab === "mine" ? mine : shared).length === 0 ? (
+        ) : base.length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <ArtifactGrid items={tab === "mine" ? mine : shared} showOwner={tab === "shared"} domain={ALLOWED_EMAIL_DOMAIN} />
+          <>
+            <div className="mt-5">
+              <FilterBar
+                value={params}
+                facets={facets}
+                action="/"
+                hidden={tab === "shared" ? { tab: "shared" } : {}}
+                showScope={false}
+                showSearch={false}
+                showVisibility={tab === "mine"}
+                domain={ALLOWED_EMAIL_DOMAIN}
+                clearHref={tab === "shared" ? "/?tab=shared" : "/"}
+                activeCount={activeFilterCount(params, true)}
+              />
+            </div>
+            {items.length === 0 ? (
+              <p className="mt-8 text-sm text-neutral-500">Nothing matches these filters.</p>
+            ) : (
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map((a) => (
+                  <ArtifactCard key={a.id} artifact={a} showOwner={tab === "shared"} domain={ALLOWED_EMAIL_DOMAIN} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </>
   );
 }
 
-function Tab({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
+function TabLink({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
   return (
     <Link
       href={href}

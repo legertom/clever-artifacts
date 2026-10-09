@@ -50,6 +50,7 @@ export default async function McpSettingsPage() {
             <ul className="mt-2 grid gap-1 sm:grid-cols-2">
               {[
                 ["list_artifacts", "yours, shared with you, or your trash"],
+                ["search_artifacts", "everything you can open, by words or #tag"],
                 ["get_artifact / get_artifact_html", "metadata or the full HTML"],
                 ["create_artifact", "upload HTML (private by default), set sharing, get the link"],
                 ["update_artifact", "rename, change the link, description, tags, sharing"],
