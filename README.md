@@ -12,7 +12,8 @@ GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
 - **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
   editable later, and old links keep redirecting.
 - **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
-  visibility (*Everyone at clever.com* or *Specific people*), view count.
+  visibility (*Only me* by default, *Specific people*, or *Everyone at clever.com*), view count.
+  Private artifacts can't be opened by anyone else, admins included.
 - **Owner actions** – rename, change the link, edit sharing, replace the HTML,
   regenerate the preview, move to trash, restore, delete permanently.
 - **Trash** – anything in the trash for 30 days is purged (lazily on dashboard load

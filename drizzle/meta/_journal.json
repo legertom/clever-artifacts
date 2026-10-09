@@ -15,6 +15,13 @@
       "when": 1791517381539,
       "tag": "0001_tiresome_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791520704349,
+      "tag": "0002_jittery_talisman",
+      "breakpoints": true
     }
   ]
 }

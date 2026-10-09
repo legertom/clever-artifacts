@@ -73,11 +73,18 @@ function sharedWithEmail(email: string) {
   );
 }
 
+/**
+ * private    → owner only (admins included out; they see it listed in /admin but can't open it).
+ * domain     → any signed-in person; restricted → explicit share list.
+ * Trashed artifacts are visible only to the owner (and admins, for non-private ones).
+ */
 function canView(
   row: { ownerId: string; visibility: ArtifactVisibility; trashedAt: Date | null; sharedDirectly: boolean },
   user: SessionUser,
 ): boolean {
-  if (user.isAdmin || row.ownerId === user.id) return true;
+  if (row.ownerId === user.id) return true;
+  if (row.visibility === "private") return false;
+  if (user.isAdmin) return true;
   if (row.trashedAt) return false;
   return row.visibility === "domain" || row.sharedDirectly;
 }
@@ -231,21 +238,29 @@ export async function getArtifactScreenshot(id: string, user: SessionUser) {
   return row;
 }
 
-/** Lookup used by mutations: owner or admin only. */
+const editableColumns = {
+  id: artifacts.id,
+  slug: artifacts.slug,
+  title: artifacts.title,
+  ownerId: artifacts.ownerId,
+  visibility: artifacts.visibility,
+  trashedAt: artifacts.trashedAt,
+};
+
+/** Lookup used by content/sharing mutations: the owner, or an admin for anything not private. */
 export async function getEditableArtifact(id: string, user: SessionUser) {
-  const [row] = await db
-    .select({
-      id: artifacts.id,
-      slug: artifacts.slug,
-      title: artifacts.title,
-      ownerId: artifacts.ownerId,
-      visibility: artifacts.visibility,
-      trashedAt: artifacts.trashedAt,
-    })
-    .from(artifacts)
-    .where(and(eq(artifacts.id, id), user.isAdmin ? undefined : eq(artifacts.ownerId, user.id)))
-    .limit(1);
-  return row ?? null;
+  const [row] = await db.select(editableColumns).from(artifacts).where(eq(artifacts.id, id)).limit(1);
+  if (!row) return null;
+  if (row.ownerId === user.id) return row;
+  if (user.isAdmin && row.visibility !== "private") return row;
+  return null;
+}
+
+/** Lookup used by trash / restore / delete: the owner, or an admin for anything (moderation). */
+export async function getModeratableArtifact(id: string, user: SessionUser) {
+  const [row] = await db.select(editableColumns).from(artifacts).where(eq(artifacts.id, id)).limit(1);
+  if (!row) return null;
+  return row.ownerId === user.id || user.isAdmin ? row : null;
 }
 
 // ---------------------------------------------------------------------------

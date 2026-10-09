@@ -177,7 +177,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     {
       title: "Upload artifact",
       description:
-        `Upload a new HTML artifact (for example a Claude artifact exported as HTML). Visible to everyone at ${ALLOWED_EMAIL_DOMAIN} by default; set visibility=restricted and share_with to limit it. Returns the artifact's URL. A preview screenshot is generated, which can take ~10 seconds.`,
+        `Upload a new HTML artifact (for example a Claude artifact exported as HTML). Private to you by default; set visibility=domain for everyone at ${ALLOWED_EMAIL_DOMAIN}, or visibility=restricted plus share_with for specific people. Returns the artifact's URL. A preview screenshot is generated, which can take ~10 seconds.`,
       inputSchema: z.object({
         html: z.string().min(1).describe("The complete HTML document."),
         title: z.string().optional().describe("Defaults to the document's <title>."),
@@ -185,7 +185,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         description: z.string().optional(),
         source_url: z.string().optional().describe("Link back to where this came from, e.g. the Claude conversation."),
         tags: z.array(z.string()).optional(),
-        visibility: z.enum(["domain", "restricted"]).optional(),
+        visibility: z.enum(["private", "domain", "restricted"]).optional().describe("private (default): only you. domain: everyone at the company. restricted: only share_with."),
         share_with: z.array(z.string()).optional().describe(`@${ALLOWED_EMAIL_DOMAIN} email addresses.`),
       }),
     },
@@ -222,7 +222,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         description: z.string().optional(),
         source_url: z.string().optional(),
         tags: z.array(z.string()).optional(),
-        visibility: z.enum(["domain", "restricted"]).optional(),
+        visibility: z.enum(["private", "domain", "restricted"]).optional(),
         share_with: z.array(z.string()).optional(),
       }),
     },

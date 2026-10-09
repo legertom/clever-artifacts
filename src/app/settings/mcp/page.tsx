@@ -51,7 +51,7 @@ export default async function McpSettingsPage() {
               {[
                 ["list_artifacts", "yours, shared with you, or your trash"],
                 ["get_artifact / get_artifact_html", "metadata or the full HTML"],
-                ["create_artifact", "upload HTML, set sharing, get the link"],
+                ["create_artifact", "upload HTML (private by default), set sharing, get the link"],
                 ["update_artifact", "rename, change the link, description, tags, sharing"],
                 ["replace_artifact_html", "new version, same link"],
                 ["trash_artifact / restore_artifact", "move to or out of the trash"],

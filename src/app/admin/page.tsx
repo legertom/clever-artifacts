@@ -88,9 +88,15 @@ export default async function AdminPage() {
                 {artifacts.map((a) => (
                   <tr key={a.id} className={a.trashedAt ? "bg-amber-50/40" : ""}>
                     <td className="max-w-[280px] px-3 py-2">
-                      <Link href={`/a/${a.slug}`} className="block truncate font-medium text-neutral-900 hover:underline">
-                        {a.title}
-                      </Link>
+                      {a.visibility === "private" ? (
+                        <span className="block truncate font-medium text-neutral-700" title="Private: only the owner can open it">
+                          {a.title}
+                        </span>
+                      ) : (
+                        <Link href={`/a/${a.slug}`} className="block truncate font-medium text-neutral-900 hover:underline">
+                          {a.title}
+                        </Link>
+                      )}
                       <span className="block truncate font-mono text-[11px] text-neutral-400">/a/{a.slug}</span>
                     </td>
                     <td className="px-3 py-2">
@@ -100,7 +106,11 @@ export default async function AdminPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {a.visibility === "domain" ? `everyone @${ALLOWED_EMAIL_DOMAIN}` : `${a.shareCount} ${a.shareCount === 1 ? "person" : "people"}`}
+                      {a.visibility === "private"
+                        ? "owner only"
+                        : a.visibility === "domain"
+                          ? `everyone @${ALLOWED_EMAIL_DOMAIN}`
+                          : `${a.shareCount} ${a.shareCount === 1 ? "person" : "people"}`}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{a.viewCount}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-neutral-600">{a.views7d}</td>
@@ -120,9 +130,11 @@ export default async function AdminPage() {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <Link href={`/a/${a.slug}/settings`} className="btn-ghost px-2 py-1 text-xs">
-                        Manage
-                      </Link>
+                      {a.visibility === "private" ? null : (
+                        <Link href={`/a/${a.slug}/settings`} className="btn-ghost px-2 py-1 text-xs">
+                          Manage
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

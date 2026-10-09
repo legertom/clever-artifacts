@@ -2,6 +2,8 @@
 
 import { EmailChips } from "@/components/email-chips";
 
+export type Visibility = "private" | "domain" | "restricted";
+
 export function VisibilityPicker({
   visibility,
   onVisibilityChange,
@@ -9,8 +11,8 @@ export function VisibilityPicker({
   onSharesChange,
   domain,
 }: {
-  visibility: "domain" | "restricted";
-  onVisibilityChange: (v: "domain" | "restricted") => void;
+  visibility: Visibility;
+  onVisibilityChange: (v: Visibility) => void;
   shares: string[];
   onSharesChange: (emails: string[]) => void;
   domain: string;
@@ -18,30 +20,38 @@ export function VisibilityPicker({
   return (
     <fieldset>
       <legend className="label">Who can view</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-3">
         <Option
-          checked={visibility === "domain"}
-          onSelect={() => onVisibilityChange("domain")}
-          title={`Everyone at ${domain}`}
-          description="Anyone who signs in with a work Google account."
+          checked={visibility === "private"}
+          onSelect={() => onVisibilityChange("private")}
+          title="Only me"
+          description="Nobody else can open it, not even admins."
         />
         <Option
           checked={visibility === "restricted"}
           onSelect={() => onVisibilityChange("restricted")}
           title="Specific people"
-          description="Only you and the people you list below."
+          description="Only you and the people you list."
+        />
+        <Option
+          checked={visibility === "domain"}
+          onSelect={() => onVisibilityChange("domain")}
+          title={`Everyone at ${domain}`}
+          description="Anyone who signs in with a work account."
         />
       </div>
-      <div className="mt-3">
-        <label className="label">
-          People
-          <span className="ml-1.5 font-normal text-neutral-500">
-            {visibility === "domain" ? "(optional — they'll see it under “Shared with me” either way)" : ""}
-          </span>
-        </label>
-        <EmailChips value={shares} onChange={onSharesChange} domain={domain} />
-        <p className="help">Type a name or address and press Enter. Paste a list to add several at once.</p>
-      </div>
+      {visibility !== "private" ? (
+        <div className="mt-3">
+          <label className="label">
+            People
+            <span className="ml-1.5 font-normal text-neutral-500">
+              {visibility === "domain" ? "(optional — they'll see it under “Shared with me” either way)" : ""}
+            </span>
+          </label>
+          <EmailChips value={shares} onChange={onSharesChange} domain={domain} />
+          <p className="help">Type a name or address and press Enter. Paste a list to add several at once.</p>
+        </div>
+      ) : null}
     </fieldset>
   );
 }

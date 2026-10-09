@@ -5,6 +5,7 @@ import { artifacts } from "@/db/schema";
 import {
   changeSlug,
   getEditableArtifact,
+  getModeratableArtifact,
   parseShareEmails,
   parseSourceUrl,
   parseTags,
@@ -47,6 +48,13 @@ export type CreateInput = {
   shares?: string | string[] | null;
 };
 
+export type Visibility = "private" | "domain" | "restricted";
+
+/** Normalise user input; null when unrecognised so callers can pick a default. */
+export function parseVisibility(raw: string | null | undefined): Visibility | null {
+  return raw === "private" || raw === "domain" || raw === "restricted" ? raw : null;
+}
+
 function validateHtml(html: string) {
   if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) {
     throw new ServiceError(`File is too large (max ${Math.round(MAX_HTML_BYTES / 1024 / 1024)} MB)`, 413);
@@ -63,13 +71,13 @@ export async function createArtifact(user: SessionUser, input: CreateInput) {
     extractTitle(input.html) ||
     (input.fileName ?? "").replace(/\.html?$/i, "").trim() ||
     "Untitled artifact";
-  const visibility = input.visibility === "restricted" ? "restricted" : "domain";
+  const visibility = parseVisibility(input.visibility) ?? "private";
   const { emails, rejected } = parseShareEmails(input.shares, user.email);
   if (rejected.length) {
     throw new ServiceError(`These addresses can't be shared with: ${rejected.join(", ")}`, 400);
   }
   if (visibility === "restricted" && emails.length === 0) {
-    throw new ServiceError("Add at least one person, or make it visible to everyone.", 400);
+    throw new ServiceError("Add at least one person, or pick another visibility.", 400);
   }
 
   const id = nanoid(12);
@@ -125,12 +133,7 @@ export async function updateArtifact(user: SessionUser, id: string, input: Updat
   }
   if (input.tags !== undefined) patch.tags = parseTags(input.tags);
 
-  const visibility =
-    input.visibility === undefined || input.visibility === null
-      ? owned.visibility
-      : input.visibility === "restricted"
-        ? "restricted"
-        : "domain";
+  const visibility = parseVisibility(input.visibility) ?? owned.visibility;
   patch.visibility = visibility;
 
   let emails: string[] | null = null;
@@ -141,7 +144,7 @@ export async function updateArtifact(user: SessionUser, id: string, input: Updat
     }
     emails = parsed.emails;
     if (visibility === "restricted" && emails.length === 0) {
-      throw new ServiceError("Add at least one person, or make it visible to everyone.", 400);
+      throw new ServiceError("Add at least one person, or pick another visibility.", 400);
     }
   }
 
@@ -197,21 +200,21 @@ export async function regeneratePreview(user: SessionUser, id: string) {
 }
 
 export async function moveToTrash(user: SessionUser, id: string) {
-  const owned = await getEditableArtifact(id, user);
+  const owned = await getModeratableArtifact(id, user);
   if (!owned) throw new ServiceError("Artifact not found.", 404);
   if (!owned.trashedAt) await trashArtifact(id, user);
   return { id, slug: owned.slug };
 }
 
 export async function restoreFromTrash(user: SessionUser, id: string) {
-  const owned = await getEditableArtifact(id, user);
+  const owned = await getModeratableArtifact(id, user);
   if (!owned) throw new ServiceError("Artifact not found.", 404);
   if (owned.trashedAt) await restoreArtifact(id);
   return { id, slug: owned.slug };
 }
 
 export async function deleteForever(user: SessionUser, id: string) {
-  const owned = await getEditableArtifact(id, user);
+  const owned = await getModeratableArtifact(id, user);
   if (!owned) throw new ServiceError("Artifact not found.", 404);
   await db.delete(artifacts).where(eq(artifacts.id, id));
   return { id };

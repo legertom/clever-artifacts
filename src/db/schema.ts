@@ -26,10 +26,12 @@ export const users = pgTable("users", {
 });
 
 /**
+ * private    → only the owner can view (the default).
  * domain     → anyone signed in with an allowed-domain account can view.
  * restricted → only the owner and the emails in artifact_shares can view.
  */
 export const artifactVisibility = pgEnum("artifact_visibility", [
+  "private",
   "domain",
   "restricted",
 ]);
@@ -54,7 +56,7 @@ export const artifacts = pgTable(
     /** Link back to where it came from (e.g. the Claude conversation). */
     sourceUrl: text("source_url"),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
-    visibility: artifactVisibility("visibility").notNull().default("domain"),
+    visibility: artifactVisibility("visibility").notNull().default("private"),
     html: text("html").notNull(),
     htmlBytes: integer("html_bytes").notNull(),
     /** JPEG, base64-encoded. Null until generated. */

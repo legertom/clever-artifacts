@@ -46,7 +46,7 @@ export type AdminArtifactRow = {
   id: string;
   slug: string;
   title: string;
-  visibility: "domain" | "restricted";
+  visibility: "private" | "domain" | "restricted";
   htmlBytes: number;
   screenshotStatus: "pending" | "ready" | "failed";
   viewCount: number;

@@ -10,7 +10,7 @@ import {
 } from "@/actions/artifacts";
 import { ChipsInput } from "@/components/chips";
 import { Spinner } from "@/components/upload-form";
-import { VisibilityPicker } from "@/components/visibility-picker";
+import { VisibilityPicker, type Visibility } from "@/components/visibility-picker";
 import type { ArtifactDetail } from "@/lib/artifacts";
 import { formatBytes, timeAgo } from "@/lib/format";
 import { slugify } from "@/lib/slug";
@@ -41,7 +41,7 @@ export function SettingsForm({
   const [description, setDescription] = useState(artifact.description ?? "");
   const [sourceUrl, setSourceUrl] = useState(artifact.sourceUrl ?? "");
   const [tags, setTags] = useState<string[]>(artifact.tags);
-  const [visibility, setVisibility] = useState(artifact.visibility);
+  const [visibility, setVisibility] = useState<Visibility>(artifact.visibility);
   const [shares, setShares] = useState<string[]>(artifact.shares);
   const [saving, startSave] = useTransition();
   const [message, setMessage] = useState<Msg>(null);
@@ -51,7 +51,7 @@ export function SettingsForm({
   function save(e: React.FormEvent) {
     e.preventDefault();
     if (visibility === "restricted" && shares.length === 0) {
-      setMessage({ kind: "error", text: "Add at least one person, or make it visible to everyone." });
+      setMessage({ kind: "error", text: "Add at least one person, or pick another option." });
       return;
     }
     setMessage(null);
@@ -326,7 +326,11 @@ function Stats({ artifact }: { artifact: ArtifactDetail }) {
         <div>
           <dt className="text-xs uppercase tracking-wide text-neutral-500">Shared with</dt>
           <dd className="mt-0.5 text-neutral-900">
-            {artifact.visibility === "domain" ? "everyone" : `${artifact.shares.length} ${artifact.shares.length === 1 ? "person" : "people"}`}
+            {artifact.visibility === "private"
+              ? "only you"
+              : artifact.visibility === "domain"
+                ? "everyone"
+                : `${artifact.shares.length} ${artifact.shares.length === 1 ? "person" : "people"}`}
           </dd>
         </div>
         <div>

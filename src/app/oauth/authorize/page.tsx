@@ -66,7 +66,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Se
               </div>
             </div>
             <ul className="mt-5 space-y-2 text-sm text-neutral-700">
-              <li className="flex gap-2"><Check /> See artifacts you own and ones shared with you</li>
+              <li className="flex gap-2"><Check /> See artifacts you own (including private ones) and ones shared with you</li>
               <li className="flex gap-2"><Check /> Upload, rename, share, trash and restore your artifacts</li>
               <li className="flex gap-2"><Check /> Look up people at Clever to share with</li>
               {user.isAdmin ? <li className="flex gap-2"><Check /> Read admin statistics (you&apos;re an admin)</li> : null}

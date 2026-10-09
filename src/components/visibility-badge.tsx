@@ -3,10 +3,21 @@ export function VisibilityBadge({
   sharedDirectly,
   domain,
 }: {
-  visibility: "domain" | "restricted";
+  visibility: "private" | "domain" | "restricted";
   sharedDirectly?: boolean;
   domain: string;
 }) {
+  if (visibility === "private") {
+    return (
+      <span className="badge border-neutral-300 bg-neutral-100 text-neutral-700">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2.5" />
+          <path d="M8 11V7a4 4 0 018 0v4" stroke="currentColor" strokeWidth="2.5" />
+        </svg>
+        Only you
+      </span>
+    );
+  }
   if (sharedDirectly) {
     return (
       <span className="badge border-emerald-200 bg-emerald-50 text-emerald-800">

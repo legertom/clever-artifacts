@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ChipsInput } from "@/components/chips";
-import { VisibilityPicker } from "@/components/visibility-picker";
+import { VisibilityPicker, type Visibility } from "@/components/visibility-picker";
 import { formatBytes } from "@/lib/format";
 import { extractTitle } from "@/lib/html";
 import { slugify } from "@/lib/slug";
@@ -18,7 +18,7 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
   const [description, setDescription] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<"domain" | "restricted">("domain");
+  const [visibility, setVisibility] = useState<Visibility>("private");
   const [shares, setShares] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading">("idle");
@@ -50,7 +50,7 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
       return;
     }
     if (visibility === "restricted" && shares.length === 0) {
-      setError("Add at least one person, or make it visible to everyone.");
+      setError("Add at least one person, or pick another option.");
       return;
     }
     setStatus("uploading");
