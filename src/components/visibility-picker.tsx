@@ -58,6 +58,15 @@ export function VisibilityPicker({
           </label>
           <EmailChips value={shares} onChange={onSharesChange} domain={domain} />
           <p className="help">Type a name or address and press Enter. Paste a list to add several at once.</p>
+          {visibility === "restricted" && reportsList.length === 0 && onShareWithReportsChange ? (
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-2 text-xs text-neutral-500">
+              <span aria-hidden>👥</span>
+              <span>
+                <span className="font-medium text-neutral-700">My direct reports</span> appears here for managers. The
+                directory doesn&apos;t list anyone reporting to you; an admin can fix that under Admin → People.
+              </span>
+            </p>
+          ) : null}
           {visibility === "restricted" && reportsList.length > 0 && onShareWithReportsChange ? (
             <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-300 bg-white p-3 transition hover:bg-neutral-50">
               <input
