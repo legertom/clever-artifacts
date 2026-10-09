@@ -4,11 +4,26 @@ An internal place to upload the HTML export of a Claude artifact and share it wi
 the right people. Each upload is a static snapshot, so opening it never re-runs the
 artifact's data loading. Sign-in is Google SSO, limited to `@clever.com` accounts.
 
-- **My artifacts** – everything you uploaded, with a screenshot preview.
-- **Shared with me** – artifacts other people made visible to everyone at Clever, or
-  shared with you by email.
-- Visibility per artifact: *Everyone at clever.com* (default) or *Specific people*.
-- Owners can rename, change sharing, replace the HTML, regenerate the preview, or delete.
+Live at **https://clever-artifacts.vercel.app** (Vercel project `clever-artifacts`,
+GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
+
+- **Dashboard** – *My artifacts*, *Shared with me* (company-wide or shared directly),
+  and *Trash*, with search by name, description, `#tag` or person.
+- **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
+  editable later, and old links keep redirecting.
+- **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
+  visibility (*Everyone at clever.com* or *Specific people*), view count.
+- **Owner actions** – rename, change the link, edit sharing, replace the HTML,
+  regenerate the preview, move to trash, restore, delete permanently.
+- **Trash** – anything in the trash for 30 days is purged (lazily on dashboard load
+  and by a daily Vercel cron hitting `/api/cron/purge-trash`).
+- **Admin** (`/admin`, emails in `ADMIN_EMAILS`) – every artifact incl. trashed,
+  views per day, per-artifact views / unique viewers / shares, people, recent activity.
+  Admins can open and manage any artifact.
+- **MCP server** (`/api/mcp`, Streamable HTTP) – the whole app as tools, for Claude,
+  Claude Code, Cursor, etc. Secured by an in-app OAuth 2.1 server (PKCE, dynamic client
+  registration, Client ID Metadata Documents, refresh-token rotation) or personal
+  tokens from `/settings/mcp`.
 
 Stack: Next.js 16 (App Router) · Auth.js v5 (Google) · Neon Postgres via Drizzle ·
 Puppeteer + serverless Chromium for previews · Tailwind v4.
@@ -29,6 +44,9 @@ Puppeteer + serverless Chromium for previews · Tailwind v4.
    | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | OAuth client from Google Cloud Console → *APIs & Services → Credentials*. Add `http://localhost:3000/api/auth/callback/google` and your production URL (`https://<host>/api/auth/callback/google`) as authorized redirect URIs. |
    | `ALLOWED_EMAIL_DOMAIN` | `clever.com`. Controls who may sign in and who can be shared with. |
    | `DATABASE_URL` | Neon connection string (the pooled one is fine). |
+   | `ADMIN_EMAILS` | Comma-separated admins. Defaults to tom.leger@clever.com, kate.schaff@clever.com. |
+   | `CRON_SECRET` | Any random string; Vercel sends it as a bearer token to the purge cron. |
+   | `APP_URL` | Optional public origin override for OAuth issuer / links (auto-detected otherwise). |
    | `CHROME_EXECUTABLE_PATH` | Optional, local dev only. Chrome is auto-detected on macOS/Linux. |
 
 3. **Database** – migrations in `drizzle/` are applied automatically before every
@@ -75,12 +93,32 @@ src/
   proxy.ts                  Signed-in gate for all routes
   db/schema.ts              users, artifacts, artifact_shares
   lib/artifacts.ts          Queries + authorization helpers
+  lib/artifact-service.ts   Create / update / replace / trash / restore (UI + API + MCP)
+  lib/admin.ts              Admin statistics queries
   lib/screenshot.ts         Headless Chrome screenshot (local Chrome or serverless)
-  actions/                  Server actions (sign in/out, update, delete)
+  lib/oauth.ts              OAuth 2.1 authorization server + token verification
+  lib/mcp-tools.ts          MCP tool definitions
+  actions/                  Server actions (sign in/out, update, trash, tokens, consent)
   app/
-    page.tsx                Dashboard (My artifacts / Shared with me)
+    page.tsx                Dashboard (My artifacts / Shared with me / Trash)
     upload/                 Upload form
-    a/[id]/                 Viewer, raw HTML, owner settings
+    a/[id]/                 Viewer, raw HTML (logs a view), owner settings
+    admin/                  Admin dashboard
+    settings/mcp/           MCP connection instructions, personal tokens, connected apps
+    oauth/*                 authorize (consent page), token, register, revoke
+    .well-known/*           OAuth server + protected-resource metadata
+    api/mcp/                MCP endpoint
     api/artifacts/          Create, replace, preview image, regenerate
-    api/users/              Autocomplete for the share list
+    api/cron/purge-trash    Daily purge (vercel.json)
 ```
+
+## Connecting an MCP client
+
+- **claude.ai / Claude Desktop**: Settings → Connectors → Add custom connector → URL
+  `https://clever-artifacts.vercel.app/api/mcp`, leave OAuth fields empty, Connect, Allow.
+- **Claude Code**: `claude mcp add --transport http clever-artifacts https://clever-artifacts.vercel.app/api/mcp`
+  then `/mcp` to sign in, or pass `--header "Authorization: Bearer <personal token>"`.
+
+Tools: `whoami`, `list_artifacts`, `get_artifact`, `get_artifact_html`, `create_artifact`,
+`update_artifact`, `replace_artifact_html`, `regenerate_preview`, `trash_artifact`,
+`restore_artifact`, `delete_artifact_permanently`, `list_people`, `admin_overview`.
