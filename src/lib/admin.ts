@@ -66,7 +66,7 @@ export async function adminListArtifacts(): Promise<AdminArtifactRow[]> {
   const since7d = new Date(Date.now() - 7 * DAY);
 
   const shareCounts = db
-    .select({ artifactId: artifactShares.artifactId, n: count().as("n") })
+    .select({ artifactId: artifactShares.artifactId, shareN: count().as("share_n") })
     .from(artifactShares)
     .groupBy(artifactShares.artifactId)
     .as("share_counts");
@@ -74,8 +74,8 @@ export async function adminListArtifacts(): Promise<AdminArtifactRow[]> {
   const viewStats = db
     .select({
       artifactId: artifactViews.artifactId,
-      viewers: countDistinct(artifactViews.userId).as("viewers"),
-      recent: count(sql`case when ${artifactViews.viewedAt} >= ${since7d} then 1 end`).as("recent"),
+      viewers: countDistinct(artifactViews.userId).as("view_viewers"),
+      recent: count(sql`case when ${artifactViews.viewedAt} >= ${since7d} then 1 end`).as("view_recent"),
     })
     .from(artifactViews)
     .groupBy(artifactViews.artifactId)
@@ -97,7 +97,7 @@ export async function adminListArtifacts(): Promise<AdminArtifactRow[]> {
       ownerName: users.name,
       ownerEmail: users.email,
       ownerImage: users.image,
-      shareCount: sql<number>`coalesce(${shareCounts.n}, 0)::int`,
+      shareCount: sql<number>`coalesce(${shareCounts.shareN}, 0)::int`,
       uniqueViewers: sql<number>`coalesce(${viewStats.viewers}, 0)::int`,
       views7d: sql<number>`coalesce(${viewStats.recent}, 0)::int`,
     })
@@ -122,7 +122,7 @@ export type AdminUserRow = {
 
 export async function adminListUsers(): Promise<AdminUserRow[]> {
   const owned = db
-    .select({ ownerId: artifacts.ownerId, n: count().as("n") })
+    .select({ ownerId: artifacts.ownerId, ownedN: count().as("owned_n") })
     .from(artifacts)
     .where(isNull(artifacts.trashedAt))
     .groupBy(artifacts.ownerId)
@@ -130,8 +130,8 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
   const viewed = db
     .select({
       userId: artifactViews.userId,
-      n: count().as("n"),
-      last: max(artifactViews.viewedAt).as("last"),
+      viewedN: count().as("viewed_n"),
+      last: max(artifactViews.viewedAt).as("viewed_last"),
     })
     .from(artifactViews)
     .groupBy(artifactViews.userId)
@@ -145,8 +145,8 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
       image: users.image,
       createdAt: users.createdAt,
       lastLoginAt: users.lastLoginAt,
-      artifactsOwned: sql<number>`coalesce(${owned.n}, 0)::int`,
-      viewsMade: sql<number>`coalesce(${viewed.n}, 0)::int`,
+      artifactsOwned: sql<number>`coalesce(${owned.ownedN}, 0)::int`,
+      viewsMade: sql<number>`coalesce(${viewed.viewedN}, 0)::int`,
       lastViewAt: viewed.last,
     })
     .from(users)
