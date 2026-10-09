@@ -34,7 +34,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         </p>
 
         <div className="mt-5">
-          <FilterBar value={params} facets={facets} action="/search" domain={ALLOWED_EMAIL_DOMAIN} clearHref="/search" activeCount={active} />
+          <FilterBar
+            value={params}
+            facets={facets}
+            action="/search"
+            domain={ALLOWED_EMAIL_DOMAIN}
+            clearHref="/search"
+            activeCount={active}
+          />
         </div>
 
         {results.length === 0 ? (

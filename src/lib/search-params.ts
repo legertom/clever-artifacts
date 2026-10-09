@@ -28,7 +28,7 @@ export const VIEWS_OPTIONS = [
   { value: 100, label: "100+ views" },
 ];
 
-export type ParsedQuery = ArtifactQuery & { scope: Scope; sort?: Sort; q: string; tags: string[] };
+export type ParsedQuery = ArtifactQuery & { scope: Scope; sort?: Sort; q: string; tags: string[]; panelOpen: boolean };
 
 /** Turn ?q=&scope=&sort=&owner=&tag=&... into a validated ArtifactQuery. */
 export function parseArtifactParams(sp: RawParams, defaults: Partial<ArtifactQuery> = {}): ParsedQuery {
@@ -48,7 +48,25 @@ export function parseArtifactParams(sp: RawParams, defaults: Partial<ArtifactQue
     createdWithinDays: num(one(sp.created), WITHIN_OPTIONS.map((o) => o.value)),
     preview: preview === "ready" || preview === "missing" ? preview : undefined,
     minViews: num(one(sp.views), VIEWS_OPTIONS.map((o) => o.value)),
+    panelOpen: one(sp.fx) === "1",
   };
+}
+
+/** Serialise a query back into URL params (used for "remove this filter" links). */
+export function toSearchParams(p: ParsedQuery, extra: Record<string, string> = {}): URLSearchParams {
+  const sp = new URLSearchParams(extra);
+  if (p.q) sp.set("q", p.q);
+  if (p.scope && p.scope !== "all") sp.set("scope", p.scope);
+  if (p.sort) sp.set("sort", p.sort);
+  if (p.owner) sp.set("owner", p.owner);
+  for (const t of p.tags) sp.append("tag", t);
+  if (p.visibility) sp.set("visibility", p.visibility);
+  if (p.updatedWithinDays) sp.set("updated", String(p.updatedWithinDays));
+  if (p.createdWithinDays) sp.set("created", String(p.createdWithinDays));
+  if (p.preview) sp.set("preview", p.preview);
+  if (p.minViews) sp.set("views", String(p.minViews));
+  if (p.panelOpen) sp.set("fx", "1");
+  return sp;
 }
 
 /** Which filters are active (for the "Clear" affordance and summary). */

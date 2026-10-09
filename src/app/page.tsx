@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArtifactCard } from "@/components/artifact-card";
 import { FilterBar } from "@/components/filter-bar";
 import { Nav } from "@/components/nav";
-import { SearchForm } from "@/components/search-form";
 import { TrashList } from "@/components/trash-list";
 import { artifactFacets, listMine, listSharedWithMe, listTrash, purgeExpiredTrash, queryArtifacts } from "@/lib/artifacts";
 import { ALLOWED_EMAIL_DOMAIN, TRASH_RETENTION_DAYS } from "@/lib/config";
@@ -50,9 +49,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </Link>
         </div>
 
-        <SearchForm className="mt-6 max-w-xl" />
-
-        <div className="mt-5 flex gap-1 border-b border-neutral-200">
+        <div className="mt-6 flex gap-1 border-b border-neutral-200">
           <TabLink href="/" active={tab === "mine"} label="My artifacts" count={mine.length} />
           <TabLink href="/?tab=shared" active={tab === "shared"} label="Shared with me" count={shared.length} />
           <TabLink href="/?tab=trash" active={tab === "trash"} label={user.isAdmin ? "Trash (all)" : "Trash"} count={trash.length} />
@@ -64,7 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           <EmptyState tab={tab} />
         ) : (
           <>
-            <div className="mt-5">
+            <div className="mt-4">
               <FilterBar
                 value={params}
                 facets={facets}
@@ -76,6 +73,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 domain={ALLOWED_EMAIL_DOMAIN}
                 clearHref={tab === "shared" ? "/?tab=shared" : "/"}
                 activeCount={activeFilterCount(params, true)}
+                summary={`${items.length} artifact${items.length === 1 ? "" : "s"}`}
               />
             </div>
             {items.length === 0 ? (
