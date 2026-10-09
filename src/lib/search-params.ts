@@ -48,6 +48,7 @@ export function parseArtifactParams(sp: RawParams, defaults: Partial<ArtifactQue
     createdWithinDays: num(one(sp.created), WITHIN_OPTIONS.map((o) => o.value)),
     preview: preview === "ready" || preview === "missing" ? preview : undefined,
     minViews: num(one(sp.views), VIEWS_OPTIONS.map((o) => o.value)),
+    favorites: one(sp.fav) === "1" || undefined,
     panelOpen: one(sp.fx) === "1",
   };
 }
@@ -65,6 +66,7 @@ export function toSearchParams(p: ParsedQuery, extra: Record<string, string> = {
   if (p.createdWithinDays) sp.set("created", String(p.createdWithinDays));
   if (p.preview) sp.set("preview", p.preview);
   if (p.minViews) sp.set("views", String(p.minViews));
+  if (p.favorites) sp.set("fav", "1");
   if (p.panelOpen) sp.set("fx", "1");
   return sp;
 }
@@ -80,5 +82,6 @@ export function activeFilterCount(p: ParsedQuery, ignoreScope = false): number {
   if (p.createdWithinDays) n++;
   if (p.preview) n++;
   if (p.minViews) n++;
+  if (p.favorites) n++;
   return n;
 }

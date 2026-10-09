@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { FavoriteButton } from "@/components/artifact-actions";
 import { EyeIcon } from "@/components/artifact-card";
 import { Avatar } from "@/components/avatar";
 import { Logo } from "@/components/logo";
@@ -74,6 +75,7 @@ export default async function ArtifactPage({ params }: Props) {
               <EyeIcon /> {a.viewCount}
             </span>
           </div>
+          {!a.trashedAt ? <FavoriteButton artifact={{ id: a.id, favorited: a.favorited }} /> : null}
           {a.sourceUrl ? (
             <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost px-2.5 py-1.5" title={a.sourceUrl}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

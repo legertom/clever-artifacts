@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, exists, gte, ilike, isNotNull, isNull, lt, n
 import { db } from "@/db";
 import {
   artifactAliases,
+  artifactFavorites,
   artifactShares,
   artifactViews,
   artifacts,
@@ -60,6 +61,8 @@ export type ArtifactSummary = {
   sharedDirectly: boolean;
   /** True when access comes from reporting to the owner (and not from the explicit list). */
   sharedViaReports: boolean;
+  /** The viewer starred it. Favorites are per person, not per artifact. */
+  favorited: boolean;
 };
 
 export type ArtifactDetail = ArtifactSummary & {
@@ -91,12 +94,33 @@ function sharedWithUser(user: SessionUser) {
   return or(explicitShare(normalizeEmail(user.email)), viaReports(user.id))!;
 }
 
+/** The viewer has starred this artifact. */
+function favoritedBy(userId: string) {
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(artifactFavorites)
+      .where(and(eq(artifactFavorites.artifactId, artifacts.id), eq(artifactFavorites.userId, userId))),
+  );
+}
+
+/** Per-viewer columns for rows that may belong to someone else. */
 function accessColumns(user: SessionUser) {
   const direct = explicitShare(normalizeEmail(user.email));
   const reports = viaReports(user.id);
   return {
     sharedDirectly: sql<boolean>`(${direct} or ${reports})`,
     sharedViaReports: sql<boolean>`(${reports} and not ${direct})`,
+    favorited: sql<boolean>`${favoritedBy(user.id)}`,
+  };
+}
+
+/** Per-viewer columns for rows the viewer owns (nothing is "shared" with its owner). */
+function ownerColumns(user: SessionUser) {
+  return {
+    sharedDirectly: sql<boolean>`false`,
+    sharedViaReports: sql<boolean>`false`,
+    favorited: sql<boolean>`${favoritedBy(user.id)}`,
   };
 }
 
@@ -135,7 +159,7 @@ export function purgeDate(trashedAt: Date): Date {
 
 export async function listMine(user: SessionUser): Promise<ArtifactSummary[]> {
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false`, sharedViaReports: sql<boolean>`false` })
+    .select({ ...summaryColumns, ...ownerColumns(user) })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(and(eq(artifacts.ownerId, user.id), isNull(artifacts.trashedAt)))
@@ -162,7 +186,7 @@ export async function listSharedWithMe(user: SessionUser): Promise<ArtifactSumma
 /** Trashed artifacts: your own, or everyone's for admins. */
 export async function listTrash(user: SessionUser): Promise<ArtifactSummary[]> {
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false`, sharedViaReports: sql<boolean>`false` })
+    .select({ ...summaryColumns, ...ownerColumns(user) })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(
@@ -241,6 +265,8 @@ export type ArtifactQuery = {
   createdWithinDays?: number;
   preview?: "ready" | "missing";
   minViews?: number;
+  /** Only artifacts the viewer has starred. */
+  favorites?: boolean;
   sort?: Sort;
   limit?: number;
 };
@@ -292,6 +318,7 @@ export async function queryArtifacts(user: SessionUser, query: ArtifactQuery = {
   if (query.preview === "ready") conditions.push(eq(artifacts.screenshotStatus, "ready"));
   if (query.preview === "missing") conditions.push(ne(artifacts.screenshotStatus, "ready"));
   if (query.minViews) conditions.push(gte(artifacts.viewCount, query.minViews));
+  if (query.favorites) conditions.push(favoritedBy(user.id));
 
   const sort: Sort = query.sort ?? (text.length || queryTags.length ? "relevance" : "updated");
   const titlePat = likePattern(text.join(" ") || queryTags[0] || "");
@@ -484,6 +511,16 @@ export async function getModeratableArtifact(id: string, user: SessionUser) {
   return row.ownerId === user.id || user.isAdmin ? row : null;
 }
 
+/** Lookup used by per-viewer actions such as starring: anything the user may open. */
+export async function getViewableArtifact(id: string, user: SessionUser) {
+  const [row] = await db
+    .select({ ...editableColumns, sharedDirectly: sql<boolean>`${sharedWithUser(user)}` })
+    .from(artifacts)
+    .where(eq(artifacts.id, id))
+    .limit(1);
+  return row && canView(row, user) ? row : null;
+}
+
 // ---------------------------------------------------------------------------
 // Input parsing
 // ---------------------------------------------------------------------------
@@ -611,6 +648,17 @@ export async function trashArtifact(artifactId: string, user: SessionUser) {
     .update(artifacts)
     .set({ trashedAt: new Date(), trashedBy: user.id })
     .where(eq(artifacts.id, artifactId));
+}
+
+/** Star or unstar an artifact for one person. Idempotent. */
+export async function favoriteArtifact(artifactId: string, userId: string, favorited: boolean) {
+  if (favorited) {
+    await db.insert(artifactFavorites).values({ artifactId, userId }).onConflictDoNothing();
+  } else {
+    await db
+      .delete(artifactFavorites)
+      .where(and(eq(artifactFavorites.artifactId, artifactId), eq(artifactFavorites.userId, userId)));
+  }
 }
 
 export async function restoreArtifact(artifactId: string) {

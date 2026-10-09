@@ -125,6 +125,26 @@ export const artifactShares = pgTable(
   ],
 );
 
+/** Someone starred an artifact they can open; shown under "Favorites" on their dashboard. */
+export const artifactFavorites = pgTable(
+  "artifact_favorites",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    artifactId: varchar("artifact_id", { length: 21 })
+      .notNull()
+      .references(() => artifacts.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.artifactId] }),
+    index("artifact_favorites_artifact_idx").on(t.artifactId),
+  ],
+);
+
 /** One row per time someone loads an artifact. */
 export const artifactViews = pgTable(
   "artifact_views",

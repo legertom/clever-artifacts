@@ -4,7 +4,7 @@ import { ArtifactCard } from "@/components/artifact-card";
 import { FilterBar } from "@/components/filter-bar";
 import { Nav } from "@/components/nav";
 import { artifactFacets, queryArtifacts } from "@/lib/artifacts";
-import { ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
+import { ALLOWED_EMAIL_DOMAIN, TRASH_RETENTION_DAYS } from "@/lib/config";
 import { activeFilterCount, parseArtifactParams, type RawParams } from "@/lib/search-params";
 import { requireUser } from "@/lib/session";
 
@@ -65,7 +65,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           <>
             <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((a) => (
-                <ArtifactCard key={a.id} artifact={a} showOwner domain={ALLOWED_EMAIL_DOMAIN} viewerId={user.id} />
+                <ArtifactCard
+                  key={a.id}
+                  artifact={a}
+                  showOwner
+                  domain={ALLOWED_EMAIL_DOMAIN}
+                  viewer={user}
+                  retentionDays={TRASH_RETENTION_DAYS}
+                />
               ))}
             </div>
           </>

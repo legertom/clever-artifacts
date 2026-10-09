@@ -4,8 +4,10 @@ import { db } from "@/db";
 import { artifacts } from "@/db/schema";
 import {
   changeSlug,
+  favoriteArtifact,
   getEditableArtifact,
   getModeratableArtifact,
+  getViewableArtifact,
   parseShareEmails,
   parseSourceUrl,
   parseTags,
@@ -220,6 +222,14 @@ export async function restoreFromTrash(user: SessionUser, id: string) {
   if (!owned) throw new ServiceError("Artifact not found.", 404);
   if (owned.trashedAt) await restoreArtifact(id);
   return { id, slug: owned.slug };
+}
+
+/** Star or unstar an artifact the user can open. Favorites are per person and never affect anyone else. */
+export async function setFavorite(user: SessionUser, id: string, favorited: boolean) {
+  const row = await getViewableArtifact(id, user);
+  if (!row) throw new ServiceError("Artifact not found.", 404);
+  await favoriteArtifact(id, user.id, favorited);
+  return { id, slug: row.slug, favorited };
 }
 
 export async function deleteForever(user: SessionUser, id: string) {

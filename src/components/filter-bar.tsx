@@ -14,6 +14,8 @@ type Props = {
   showScope?: boolean;
   showSearch?: boolean;
   showVisibility?: boolean;
+  /** Offer "Starred only". Off on the dashboard's Favorites tab, where it's implied. */
+  showFavorites?: boolean;
   domain: string;
   clearHref: string;
   activeCount: number;
@@ -34,6 +36,7 @@ export function FilterBar({
   showScope = true,
   showSearch = true,
   showVisibility = true,
+  showFavorites = true,
   domain,
   clearHref,
   activeCount,
@@ -75,6 +78,7 @@ export function FilterBar({
   if (value.createdWithinDays) chips.push({ label: `Uploaded: ${withinLabel(value.createdWithinDays)}`, href: without((p) => (p.createdWithinDays = undefined)) });
   if (value.minViews) chips.push({ label: VIEWS_OPTIONS.find((o) => o.value === value.minViews)?.label ?? "Popular", href: without((p) => (p.minViews = undefined)) });
   if (value.preview) chips.push({ label: value.preview === "ready" ? "Has preview" : "Missing preview", href: without((p) => (p.preview = undefined)) });
+  if (value.favorites) chips.push({ label: "Starred only", href: without((p) => (p.favorites = undefined)) });
 
   return (
     <form ref={form} action={action} method="get" className="space-y-3">
@@ -207,6 +211,12 @@ export function FilterBar({
                 <option value="private">Only owner</option>
                 <option value="restricted">Specific people</option>
                 <option value="domain">Everyone at {domain}</option>
+              </Field>
+            ) : null}
+            {showFavorites ? (
+              <Field name="fav" label="Favorites" value={value.favorites ? "1" : ""} onChange={submit}>
+                <option value="">Any</option>
+                <option value="1">Starred only</option>
               </Field>
             ) : null}
           </div>

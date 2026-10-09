@@ -8,7 +8,11 @@ Live at **https://clever-artifacts.vercel.app** (Vercel project `clever-artifact
 GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
 
 - **Dashboard** – *My artifacts*, *Shared with me* (company-wide or shared directly),
-  and *Trash*.
+  *Favorites* (anything you've starred) and *Trash*. Hovering a card slides up a strip
+  with a star and, for your own artifacts, a trash can. Trashing asks for confirmation
+  and spells out the 30-day purge.
+- **Favorites** – personal stars on anything you can open; filter any list to
+  *Starred only*. Nobody else sees your stars.
 - **Search** (`/search`, box in every header) – across everything you can open: yours,
   shared with you, and company-wide; by name, description, `#tag` or person.
 - **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
@@ -95,7 +99,7 @@ Puppeteer + serverless Chromium for previews · Tailwind v4.
 src/
   auth.config.ts, auth.ts   Auth.js (Google, domain restriction, user upsert)
   proxy.ts                  Signed-in gate for all routes
-  db/schema.ts              users, artifacts, artifact_shares
+  db/schema.ts              users, artifacts, artifact_shares, artifact_favorites
   lib/artifacts.ts          Queries + authorization helpers
   lib/artifact-service.ts   Create / update / replace / trash / restore (UI + API + MCP)
   lib/admin.ts              Admin statistics queries
@@ -124,5 +128,5 @@ src/
   then `/mcp` to sign in, or pass `--header "Authorization: Bearer <personal token>"`.
 
 Tools: `whoami`, `list_artifacts`, `search_artifacts`, `get_artifact`, `get_artifact_html`, `create_artifact`,
-`update_artifact`, `replace_artifact_html`, `regenerate_preview`, `trash_artifact`,
+`update_artifact`, `replace_artifact_html`, `regenerate_preview`, `favorite_artifact`, `trash_artifact`,
 `restore_artifact`, `delete_artifact_permanently`, `list_people`, `admin_overview`.

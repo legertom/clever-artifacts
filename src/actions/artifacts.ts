@@ -7,6 +7,7 @@ import {
   moveToTrash,
   restoreFromTrash,
   ServiceError,
+  setFavorite,
   updateArtifact as updateArtifactService,
   type UpdateInput,
 } from "@/lib/artifact-service";
@@ -45,6 +46,20 @@ export async function trashArtifactAction(id: string): Promise<ActionResult> {
   try {
     const r = await moveToTrash(user, id);
     revalidateArtifact(r.slug);
+    return { ok: true, slug: r.slug };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+export async function setFavoriteAction(id: string, favorited: boolean): Promise<ActionResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "You're signed out. Reload and try again." };
+  try {
+    const r = await setFavorite(user, id, favorited);
+    revalidatePath("/");
+    revalidatePath("/search");
+    revalidatePath(`/a/${r.slug}`);
     return { ok: true, slug: r.slug };
   } catch (e) {
     return errorResult(e);

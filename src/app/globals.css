@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Devices with no hover (phones, tablets): card actions stay visible instead of sliding in. */
+@custom-variant touch (@media (hover: none));
+
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -60,6 +63,6 @@ body {
     @apply rounded-xl border border-neutral-200 bg-white shadow-sm;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4;
+    @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4;
   }
 }

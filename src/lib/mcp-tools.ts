@@ -13,6 +13,7 @@ import {
   resolveForUser,
   restoreFromTrash,
   ServiceError,
+  setFavorite,
   updateArtifact,
 } from "@/lib/artifact-service";
 import {
@@ -59,6 +60,7 @@ function summarize(origin: string, a: ArtifactSummary) {
     shared_with_owner_direct_reports: a.shareWithReports || undefined,
     shared_with_you_directly: a.sharedDirectly || undefined,
     shared_with_you_via_your_manager: a.sharedViaReports || undefined,
+    favorited: a.favorited || undefined,
     owner: { name: a.ownerName, email: a.ownerEmail },
     size_bytes: a.htmlBytes,
     preview: a.screenshotStatus,
@@ -107,9 +109,9 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     {
       title: "List artifacts",
       description:
-        "List artifacts. scope=mine (yours), shared (visible to you from others: company-wide or shared directly), trash (your trash; admins see everyone's). Optional query and sort; use search_artifacts for the full set of filters.",
+        "List artifacts. scope=mine (yours), shared (visible to you from others: company-wide or shared directly), favorites (anything you've starred), trash (your trash; admins see everyone's). Optional query and sort; use search_artifacts for the full set of filters.",
       inputSchema: z.object({
-        scope: z.enum(["mine", "shared", "trash"]).default("mine"),
+        scope: z.enum(["mine", "shared", "favorites", "trash"]).default("mine"),
         query: z.string().optional(),
         sort: z.enum(SORTS).optional(),
         limit: z.number().int().min(1).max(200).default(50),
@@ -121,7 +123,9 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         let rows =
           scope === "trash"
             ? await listTrash(user)
-            : await queryArtifacts(user, { scope: scope === "mine" ? "mine" : "others", q: query, sort, limit: 200 });
+            : scope === "favorites"
+              ? await queryArtifacts(user, { scope: "all", favorites: true, q: query, sort, limit: 200 })
+              : await queryArtifacts(user, { scope: scope === "mine" ? "mine" : "others", q: query, sort, limit: 200 });
         if (scope === "trash" && query) {
           const q = query.toLowerCase();
           rows = rows.filter((a) =>
@@ -157,6 +161,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         created_within_days: z.number().int().min(1).max(3650).optional(),
         min_views: z.number().int().min(0).optional(),
         has_preview: z.boolean().optional(),
+        favorites_only: z.boolean().optional().describe("Only artifacts you've starred."),
         sort: z.enum(SORTS).optional().describe("Default: relevance when a query is given, otherwise recently updated."),
         limit: z.number().int().min(1).max(200).default(25),
       }),
@@ -174,6 +179,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
           createdWithinDays: args.created_within_days,
           minViews: args.min_views,
           preview: args.has_preview === undefined ? undefined : args.has_preview ? "ready" : "missing",
+          favorites: args.favorites_only,
           sort: args.sort,
           limit: args.limit,
         });
@@ -343,6 +349,25 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         const user = userFrom(ctx);
         const id = await resolveForUser(artifact);
         return json(await regeneratePreview(user, id));
+      } catch (e) {
+        return fail(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "favorite_artifact",
+    {
+      title: "Star / unstar artifact",
+      description:
+        "Add an artifact you can open to your favorites (or remove it). Favorites are personal: they show under the Favorites tab on your dashboard and never affect anyone else.",
+      inputSchema: z.object({ artifact: handleArg, favorited: z.boolean().default(true).describe("false to unstar.") }),
+    },
+    async ({ artifact, favorited }, ctx) => {
+      try {
+        const user = userFrom(ctx);
+        const id = await resolveForUser(artifact);
+        return json({ ok: true, ...(await setFavorite(user, id, favorited)) });
       } catch (e) {
         return fail(e);
       }
