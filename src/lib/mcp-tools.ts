@@ -181,6 +181,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
       inputSchema: z.object({
         html: z.string().min(1).describe("The complete HTML document."),
         title: z.string().optional().describe("Defaults to the document's <title>."),
+        slug: z.string().optional().describe("Requested URL handle, e.g. 'q3-renewals'. Spaces become dashes; made unique if taken. Defaults to the title."),
         description: z.string().optional(),
         source_url: z.string().optional().describe("Link back to where this came from, e.g. the Claude conversation."),
         tags: z.array(z.string()).optional(),
@@ -194,6 +195,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         const r = await createArtifact(user, {
           html: args.html,
           title: args.title,
+          slug: args.slug,
           description: args.description,
           sourceUrl: args.source_url,
           tags: args.tags,

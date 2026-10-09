@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import { UploadForm } from "@/components/upload-form";
 import { ALLOWED_EMAIL_DOMAIN, MAX_HTML_BYTES } from "@/lib/config";
+import { getOrigin } from "@/lib/origin";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Upload" };
 
 export default async function UploadPage() {
   const user = await requireUser();
+  const origin = await getOrigin();
   return (
     <>
       <Nav user={user} />
@@ -18,7 +20,7 @@ export default async function UploadPage() {
           never re-runs anything.
         </p>
         <div className="card mt-6 p-5 sm:p-6">
-          <UploadForm domain={ALLOWED_EMAIL_DOMAIN} maxBytes={MAX_HTML_BYTES} />
+          <UploadForm domain={ALLOWED_EMAIL_DOMAIN} maxBytes={MAX_HTML_BYTES} origin={origin} />
         </div>
       </main>
     </>

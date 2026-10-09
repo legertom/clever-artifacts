@@ -6,12 +6,15 @@ import { ChipsInput } from "@/components/chips";
 import { VisibilityPicker } from "@/components/visibility-picker";
 import { formatBytes } from "@/lib/format";
 import { extractTitle } from "@/lib/html";
+import { slugify } from "@/lib/slug";
 
-export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: number }) {
+export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBytes: number; origin: string }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [titleTouched, setTitleTouched] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -55,6 +58,7 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
     const fd = new FormData();
     fd.set("file", file);
     fd.set("title", title.trim());
+    fd.set("slug", slugPreview);
     fd.set("description", description.trim());
     fd.set("sourceUrl", sourceUrl.trim());
     fd.set("tags", tags.join(","));
@@ -76,6 +80,7 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
   }
 
   const busy = status === "uploading";
+  const slugPreview = slugify(slugTouched ? slug : title);
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -139,7 +144,41 @@ export function UploadForm({ domain, maxBytes }: { domain: string; maxBytes: num
             setTitleTouched(true);
           }}
         />
-        <p className="help">Pulled from the file&apos;s title automatically. The link is made from this name.</p>
+        <p className="help">Pulled from the file&apos;s title automatically.</p>
+      </div>
+
+      <div>
+        <label htmlFor="slug" className="label">
+          Link
+        </label>
+        <div className="flex items-center overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/30">
+          <span className="shrink-0 border-r border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+            {origin.replace(/^https?:\/\//, "")}/a/
+          </span>
+          <input
+            id="slug"
+            className="w-full px-3 py-2 text-sm outline-none"
+            value={slugTouched ? slug : slugPreview}
+            maxLength={80}
+            spellCheck={false}
+            placeholder="my-artifact"
+            onChange={(e) => {
+              setSlug(e.target.value);
+              setSlugTouched(true);
+            }}
+            onBlur={() => slugTouched && setSlug(slugify(slug))}
+          />
+        </div>
+        <p className="help">
+          {slugPreview ? (
+            <>
+              Your artifact will live at <span className="font-mono">/a/{slugPreview}</span>. Spaces become dashes; if
+              it&apos;s taken, a number is added.
+            </>
+          ) : (
+            "Made from the name unless you type your own. Spaces become dashes."
+          )}
+        </p>
       </div>
 
       <div>

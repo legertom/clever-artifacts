@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       html: await file.text(),
       fileName: file.name,
       title: str("title"),
+      slug: str("slug"),
       description: str("description"),
       sourceUrl: str("sourceUrl"),
       tags: str("tags"),

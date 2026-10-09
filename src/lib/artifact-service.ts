@@ -18,6 +18,7 @@ import { LIMITS, MAX_HTML_BYTES } from "@/lib/config";
 import { generateAndStoreScreenshot } from "@/lib/generate-screenshot";
 import { extractTitle, looksLikeHtml } from "@/lib/html";
 import type { SessionUser } from "@/lib/session";
+import { slugify } from "@/lib/slug";
 
 /**
  * Operations shared by the web UI, the upload API and the MCP server. Every
@@ -36,6 +37,8 @@ export class ServiceError extends Error {
 export type CreateInput = {
   html: string;
   title?: string | null;
+  /** Requested link handle; normalised, made unique. Defaults to the title. */
+  slug?: string | null;
   fileName?: string | null;
   description?: string | null;
   sourceUrl?: string | null;
@@ -70,7 +73,8 @@ export async function createArtifact(user: SessionUser, input: CreateInput) {
   }
 
   const id = nanoid(12);
-  const slug = await uniqueSlug(title);
+  const requestedSlug = slugify(input.slug ?? "");
+  const slug = await uniqueSlug(requestedSlug || title);
   await db.insert(artifacts).values({
     id,
     slug,

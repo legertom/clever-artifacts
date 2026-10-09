@@ -102,6 +102,7 @@ export function SettingsForm({
               maxLength={80}
               spellCheck={false}
               onChange={(e) => setSlug(e.target.value)}
+              onBlur={() => setSlug(slugify(slug) || artifact.slug)}
             />
           </div>
           <p className="help">
