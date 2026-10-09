@@ -37,18 +37,18 @@ export function CardActions({
         </span>
       ) : null}
 
-      <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-between gap-2 border-t border-neutral-200 bg-white/95 px-2.5 py-1.5 backdrop-blur-sm transition-transform duration-200 ease-out group-hover:translate-y-0 group-focus-within:translate-y-0 motion-reduce:transition-none touch:static touch:translate-y-0">
-        <StarButton fav={fav} size="lg" />
-        {fav.error ? <span className="min-w-0 truncate text-xs text-red-700">{fav.error}</span> : null}
+      <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center gap-3 border-t border-neutral-200 bg-white/95 px-2.5 py-2 backdrop-blur-sm transition-transform duration-200 ease-out group-hover:translate-y-0 group-focus-within:translate-y-0 motion-reduce:transition-none touch:static touch:translate-y-0">
+        {/* The star is the main action: a wide pill that takes the whole strip. The trash is deliberately small. */}
+        <StarButton fav={fav} variant="pill" />
         {canTrash ? (
           <button
             type="button"
             onClick={() => setConfirming(true)}
             aria-label="Move to trash"
             title="Move to trash"
-            className="grid size-8 shrink-0 place-items-center rounded-full text-red-500 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+            className="grid size-7 shrink-0 place-items-center rounded-full text-red-500 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
           >
-            <TrashIcon size={17} />
+            <TrashIcon size={15} />
           </button>
         ) : null}
       </div>
@@ -65,7 +65,7 @@ export function FavoriteButton({ artifact }: { artifact: { id: string; favorited
   const fav = useFavorite(artifact);
   return (
     <span className="inline-flex items-center gap-1.5">
-      <StarButton fav={fav} size="md" />
+      <StarButton fav={fav} variant="icon" />
       {fav.error ? <span className="hidden text-xs text-red-700 sm:inline">{fav.error}</span> : null}
     </span>
   );
@@ -101,8 +101,33 @@ function useFavorite(artifact: { id: string; favorited: boolean }) {
   return { value, pending, error, pops, toggle };
 }
 
-function StarButton({ fav, size }: { fav: ReturnType<typeof useFavorite>; size: "lg" | "md" }) {
+/** `pill`: a wide labelled button for the card strip. `icon`: a compact round one for the viewer header. */
+function StarButton({ fav, variant }: { fav: ReturnType<typeof useFavorite>; variant: "pill" | "icon" }) {
   const label = fav.value ? "Remove from favorites" : "Add to favorites";
+  const icon = (
+    <span key={fav.pops} className={`grid place-items-center ${fav.pops ? "animate-star-pop" : ""}`}>
+      <StarIcon filled={fav.value} size={variant === "pill" ? 22 : 18} />
+    </span>
+  );
+  const common = "transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60";
+
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        onClick={fav.toggle}
+        aria-pressed={fav.value}
+        aria-label={label}
+        title={label}
+        className={`${common} grid size-8 shrink-0 place-items-center rounded-full hover:bg-amber-50 active:scale-90 ${
+          fav.value ? "text-amber-500" : "text-amber-400 hover:text-amber-500"
+        } ${fav.pending ? "opacity-80" : ""}`}
+      >
+        {icon}
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -110,13 +135,14 @@ function StarButton({ fav, size }: { fav: ReturnType<typeof useFavorite>; size: 
       aria-pressed={fav.value}
       aria-label={label}
       title={label}
-      className={`grid shrink-0 place-items-center rounded-full transition hover:bg-amber-50 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
-        size === "lg" ? "size-10" : "size-8"
-      } ${fav.value ? "text-amber-500" : "text-amber-400 hover:text-amber-500"} ${fav.pending ? "opacity-80" : ""}`}
+      className={`${common} flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full border text-sm font-medium active:scale-[0.98] ${
+        fav.value
+          ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200/70"
+          : "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100"
+      } ${fav.pending ? "opacity-80" : ""}`}
     >
-      <span key={fav.pops} className={`grid place-items-center ${fav.pops ? "animate-star-pop" : ""}`}>
-        <StarIcon filled={fav.value} size={size === "lg" ? 24 : 18} />
-      </span>
+      <span className="text-amber-500">{icon}</span>
+      <span className={`truncate ${fav.error ? "text-red-700" : ""}`}>{fav.error ?? (fav.value ? "Favorited" : "Favorite")}</span>
     </button>
   );
 }

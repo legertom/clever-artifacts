@@ -4,11 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { FavoriteButton } from "@/components/artifact-actions";
 import { EyeIcon } from "@/components/artifact-card";
 import { Avatar } from "@/components/avatar";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { Logo } from "@/components/logo";
 import { VisibilityBadge } from "@/components/visibility-badge";
 import { getArtifactForViewer, purgeDate, resolveHandle } from "@/lib/artifacts";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
 import { timeAgo } from "@/lib/format";
+import { getOrigin } from "@/lib/origin";
 import { requireUser } from "@/lib/session";
 
 type Props = { params: Promise<{ id: string }> };
@@ -31,6 +33,7 @@ export default async function ArtifactPage({ params }: Props) {
   if (!a) notFound();
 
   const rawUrl = `/a/${a.slug}/raw`;
+  const shareUrl = `${await getOrigin()}/a/${a.slug}`;
 
   return (
     <div className="flex h-dvh flex-col">
@@ -76,6 +79,7 @@ export default async function ArtifactPage({ params }: Props) {
             </span>
           </div>
           {!a.trashedAt ? <FavoriteButton artifact={{ id: a.id, favorited: a.favorited }} /> : null}
+          <CopyLinkButton url={shareUrl} />
           {a.sourceUrl ? (
             <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost px-2.5 py-1.5" title={a.sourceUrl}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

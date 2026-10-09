@@ -16,7 +16,8 @@ GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
 - **Search** (`/search`, box in every header) – across everything you can open: yours,
   shared with you, and company-wide; by name, description, `#tag` or person.
 - **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
-  editable later, and old links keep redirecting.
+  editable later, and old links keep redirecting. A *Copy link* button in the viewer's
+  top bar puts the link on the clipboard.
 - **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
   visibility (*Only me* by default, *Specific people*, or *Everyone at clever.com*), view count.
   Private artifacts can't be opened by anyone else, admins included. Under *Specific people*,
