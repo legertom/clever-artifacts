@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { setFavoriteAction, trashArtifactAction } from "@/actions/artifacts";
 import { Spinner } from "@/components/upload-form";
 
@@ -31,9 +31,9 @@ export function CardActions({
       {fav.value ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/95 text-amber-500 shadow-sm ring-1 ring-black/5 touch:hidden"
+          className="pointer-events-none absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/95 text-amber-500 shadow-sm ring-1 ring-amber-200 touch:hidden"
         >
-          <StarIcon filled size={15} />
+          <StarIcon filled size={16} />
         </span>
       ) : null}
 
@@ -46,7 +46,7 @@ export function CardActions({
             onClick={() => setConfirming(true)}
             aria-label="Move to trash"
             title="Move to trash"
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
+            className="grid size-8 shrink-0 place-items-center rounded-full text-red-500 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
           >
             <TrashIcon size={17} />
           </button>
@@ -72,20 +72,33 @@ export function FavoriteButton({ artifact }: { artifact: { id: string; favorited
 }
 
 function useFavorite(artifact: { id: string; favorited: boolean }) {
-  const [value, setOptimistic] = useOptimistic(artifact.favorited);
+  const [value, setValue] = useState(artifact.favorited);
+  const [seen, setSeen] = useState(artifact.favorited);
+  // The action revalidates the page, so the server's answer arrives as a new prop; adopt it.
+  if (seen !== artifact.favorited) {
+    setSeen(artifact.favorited);
+    setValue(artifact.favorited);
+  }
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /** Bumped on every star so the icon replays its pop animation. */
+  const [pops, setPops] = useState(0);
 
-  const toggle = () =>
+  function toggle() {
+    const next = !value;
+    setValue(next);
+    setError(null);
+    if (next) setPops((n) => n + 1);
     start(async () => {
-      const next = !value;
-      setOptimistic(next);
-      setError(null);
       const r = await setFavoriteAction(artifact.id, next);
-      if (!r.ok) setError(r.error);
+      if (!r.ok) {
+        setValue(!next);
+        setError(r.error);
+      }
     });
+  }
 
-  return { value, pending, error, toggle };
+  return { value, pending, error, pops, toggle };
 }
 
 function StarButton({ fav, size }: { fav: ReturnType<typeof useFavorite>; size: "lg" | "md" }) {
@@ -97,11 +110,13 @@ function StarButton({ fav, size }: { fav: ReturnType<typeof useFavorite>; size: 
       aria-pressed={fav.value}
       aria-label={label}
       title={label}
-      className={`grid shrink-0 place-items-center rounded-lg transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${
-        size === "lg" ? "size-9" : "size-8"
-      } ${fav.value ? "text-amber-500" : "text-neutral-400 hover:text-amber-500"} ${fav.pending ? "opacity-70" : ""}`}
+      className={`grid shrink-0 place-items-center rounded-full transition hover:bg-amber-50 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
+        size === "lg" ? "size-10" : "size-8"
+      } ${fav.value ? "text-amber-500" : "text-amber-400 hover:text-amber-500"} ${fav.pending ? "opacity-80" : ""}`}
     >
-      <StarIcon filled={fav.value} size={size === "lg" ? 22 : 18} />
+      <span key={fav.pops} className={`grid place-items-center ${fav.pops ? "animate-star-pop" : ""}`}>
+        <StarIcon filled={fav.value} size={size === "lg" ? 24 : 18} />
+      </span>
     </button>
   );
 }
@@ -190,10 +205,28 @@ function ConfirmTrashDialog({
 }
 
 export function StarIcon({ filled, size = 18 }: { filled: boolean; size?: number }) {
+  // Gradient ids must be unique per instance; useId's punctuation isn't safe inside url(#…).
+  const gradientId = `star-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} aria-hidden>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className={filled ? "drop-shadow-[0_1px_1.5px_rgba(217,119,6,0.35)]" : undefined}
+      aria-hidden
+    >
+      {filled ? (
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#fde68a" />
+            <stop offset="1" stopColor="#f59e0b" />
+          </linearGradient>
+        </defs>
+      ) : null}
       <path
         d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8L12 2.8z"
+        fill={filled ? `url(#${gradientId})` : "currentColor"}
+        fillOpacity={filled ? 1 : 0.18}
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinejoin="round"
