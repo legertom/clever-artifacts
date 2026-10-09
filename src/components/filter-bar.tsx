@@ -42,8 +42,19 @@ export function FilterBar({
   const form = useRef<HTMLFormElement>(null);
   const [toggled, setToggled] = useState<boolean | null>(null);
   const open = toggled ?? (value.panelOpen || activeCount > 0);
-  const submit = () => form.current?.requestSubmit();
-  const sort: Sort = value.sort ?? (value.q ? "relevance" : "updated");
+  const defaultSort: Sort = value.q ? "relevance" : "updated";
+  const sort: Sort = value.sort ?? defaultSort;
+  /** Submit without empty or default-valued controls so the URL stays short and shareable. */
+  const submit = () => {
+    const f = form.current;
+    if (!f) return;
+    for (const el of Array.from(f.elements)) {
+      if (!(el instanceof HTMLSelectElement || el instanceof HTMLInputElement) || !el.name) continue;
+      const isDefault = el.name === "sort" && el.value === defaultSort;
+      if (el.value === "" || isDefault) el.disabled = true;
+    }
+    f.requestSubmit();
+  };
 
   const without = (mutate: (p: ParsedQuery) => void) => {
     const next: ParsedQuery = { ...value, tags: [...value.tags] };
