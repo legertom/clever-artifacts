@@ -394,7 +394,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     "list_people",
     {
       title: "List people",
-      description: "People who have signed in to Clever Artifacts, for building share lists.",
+      description: "People at the company (from sign-ins and the employee directory), for building share lists. Matches name, email, title or department.",
       inputSchema: z.object({ query: z.string().optional(), limit: z.number().int().min(1).max(100).default(25) }),
     },
     async ({ query, limit }, ctx) => {
@@ -403,10 +403,10 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         const q = (query ?? "").trim();
         const pattern = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
         const rows = await db
-          .select({ email: users.email, name: users.name, lastLoginAt: users.lastLoginAt })
+          .select({ email: users.email, name: users.name, title: users.title, department: users.department, lastLoginAt: users.lastLoginAt })
           .from(users)
-          .where(q ? or(ilike(users.email, pattern), ilike(users.name, pattern)) : ne(users.id, ""))
-          .orderBy(users.email)
+          .where(q ? or(ilike(users.email, pattern), ilike(users.name, pattern), ilike(users.title, pattern), ilike(users.department, pattern)) : ne(users.id, ""))
+          .orderBy(users.name, users.email)
           .limit(limit);
         return json({ count: rows.length, people: rows, you: user.email });
       } catch (e) {

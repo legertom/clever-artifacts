@@ -50,7 +50,7 @@ export function FilterBar({
     if (!f) return;
     for (const el of Array.from(f.elements)) {
       if (!(el instanceof HTMLSelectElement || el instanceof HTMLInputElement) || !el.name) continue;
-      const isDefault = el.name === "sort" && el.value === defaultSort;
+      const isDefault = (el.name === "sort" && el.value === defaultSort) || (el.name === "scope" && el.value === "all");
       if (el.value === "" || isDefault) el.disabled = true;
     }
     f.requestSubmit();
@@ -84,36 +84,25 @@ export function FilterBar({
       {open ? <input type="hidden" name="fx" value="1" /> : null}
       {!showSearch && value.q ? <input type="hidden" name="q" value={value.q} /> : null}
 
+      {showSearch ? (
+        <div className="relative">
+          <SearchIcon />
+          <input
+            type="search"
+            name="q"
+            defaultValue={value.q}
+            placeholder="Search by name, description, #tag or person — press Enter"
+            aria-label="Search"
+            autoComplete="off"
+            autoFocus
+            className="input h-11 pl-9 text-[15px]"
+          />
+        </div>
+      ) : null}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        {showSearch ? (
-          <div className="relative min-w-[240px] flex-1">
-            <SearchIcon />
-            <input
-              type="search"
-              name="q"
-              defaultValue={value.q}
-              placeholder="Search by name, description, #tag or person"
-              aria-label="Search"
-              autoComplete="off"
-              className="input h-10 pl-9"
-            />
-          </div>
-        ) : summary ? (
-          <span className="mr-auto text-sm text-neutral-500">{summary}</span>
-        ) : (
-          <span className="mr-auto" />
-        )}
-
-        {showScope ? (
-          <PillSelect name="scope" label="Show" value={value.scope} onChange={submit}>
-            {(Object.keys(SCOPE_LABELS) as Scope[]).map((s) => (
-              <option key={s} value={s}>
-                {scopeLabel(s, domain)}
-              </option>
-            ))}
-          </PillSelect>
-        ) : null}
+        <span className="mr-auto text-sm text-neutral-500">{summary ?? ""}</span>
 
         <PillSelect name="sort" label="Sort" value={sort} onChange={submit}>
           {(Object.keys(SORT_LABELS) as Sort[]).map((k) => (
@@ -165,7 +154,16 @@ export function FilterBar({
       {/* Panel */}
       {open ? (
         <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {showScope ? (
+              <Field name="scope" label="Show" value={value.scope} onChange={submit}>
+                {(Object.keys(SCOPE_LABELS) as Scope[]).map((s) => (
+                  <option key={s} value={s}>
+                    {scopeLabel(s, domain)}
+                  </option>
+                ))}
+              </Field>
+            ) : null}
             <Field name="owner" label="Owner" value={value.owner ?? ""} onChange={submit}>
               <option value="">Anyone</option>
               {facets.owners.map((o) => (

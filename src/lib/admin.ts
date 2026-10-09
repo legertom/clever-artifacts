@@ -1,4 +1,4 @@
-import { count, countDistinct, desc, eq, gte, isNull, max, sql } from "drizzle-orm";
+import { asc, count, countDistinct, desc, eq, gte, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { artifactShares, artifactViews, artifacts, users } from "@/db/schema";
 
@@ -17,7 +17,7 @@ export async function adminOverview() {
           bytes: sql<number>`coalesce(sum(${artifacts.htmlBytes}), 0)::int`,
         })
         .from(artifacts),
-      db.select({ n: count() }).from(users),
+      db.select({ n: count() }).from(users).where(isNotNull(users.lastLoginAt)),
       db
         .select({ views: count(), viewers: countDistinct(artifactViews.userId) })
         .from(artifactViews),
@@ -113,8 +113,10 @@ export type AdminUserRow = {
   email: string;
   name: string | null;
   image: string | null;
+  title: string | null;
+  department: string | null;
   createdAt: Date;
-  lastLoginAt: Date;
+  lastLoginAt: Date | null;
   artifactsOwned: number;
   viewsMade: number;
   lastViewAt: Date | null;
@@ -143,6 +145,8 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
       email: users.email,
       name: users.name,
       image: users.image,
+      title: users.title,
+      department: users.department,
       createdAt: users.createdAt,
       lastLoginAt: users.lastLoginAt,
       artifactsOwned: sql<number>`coalesce(${owned.ownedN}, 0)::int`,
@@ -152,7 +156,7 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
     .from(users)
     .leftJoin(owned, eq(owned.ownerId, users.id))
     .leftJoin(viewed, eq(viewed.userId, users.id))
-    .orderBy(desc(users.lastLoginAt));
+    .orderBy(sql`${users.lastLoginAt} desc nulls last`, asc(users.email));
 }
 
 export type AdminViewRow = {

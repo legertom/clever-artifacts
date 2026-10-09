@@ -41,6 +41,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
             domain={ALLOWED_EMAIL_DOMAIN}
             clearHref="/search"
             activeCount={active}
+            summary={
+              results.length === 0
+                ? "No results"
+                : `${results.length === LIMIT ? `First ${LIMIT}` : results.length} result${results.length === 1 ? "" : "s"}${params.q ? ` for “${params.q}”` : ""}`
+            }
           />
         </div>
 
@@ -58,11 +63,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
           </div>
         ) : (
           <>
-            <p className="mt-6 text-sm text-neutral-500">
-              {results.length === LIMIT ? `First ${LIMIT} results` : `${results.length} result${results.length === 1 ? "" : "s"}`}
-              {params.q ? ` for “${params.q}”` : ""}
-            </p>
-            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((a) => (
                 <ArtifactCard key={a.id} artifact={a} showOwner domain={ALLOWED_EMAIL_DOMAIN} viewerId={user.id} />
               ))}

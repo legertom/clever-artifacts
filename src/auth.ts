@@ -12,7 +12,7 @@ async function upsertUser(input: {
   const email = normalizeEmail(input.email);
   const [row] = await db
     .insert(users)
-    .values({ email, name: input.name ?? null, image: input.image ?? null })
+    .values({ email, name: input.name ?? null, image: input.image ?? null, lastLoginAt: new Date() })
     .onConflictDoUpdate({
       target: users.email,
       set: {

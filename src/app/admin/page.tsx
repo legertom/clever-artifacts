@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
+import { DirectoryImport } from "@/components/directory-import";
 import { Nav } from "@/components/nav";
 import { adminListArtifacts, adminListUsers, adminOverview, adminRecentViews, adminViewsPerDay } from "@/lib/admin";
 import { purgeDate } from "@/lib/artifacts";
@@ -152,7 +153,14 @@ export default async function AdminPage() {
 
         <div className="mt-8 grid gap-8 lg:grid-cols-5">
           <section className="lg:col-span-3">
-            <h2 className="text-base font-semibold text-neutral-900">People</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-neutral-900">People</h2>
+              <DirectoryImport domain={ALLOWED_EMAIL_DOMAIN} />
+            </div>
+            <p className="mt-1 text-xs text-neutral-500">
+              Everyone who has signed in or been imported from the directory. Imported people can be added to share
+              lists before their first sign-in. Needs columns like Name, Email, Title, Department.
+            </p>
             <div className="card mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
@@ -175,11 +183,15 @@ export default async function AdminPage() {
                             <span className="block text-xs text-neutral-500">
                               {p.email}
                               {ADMIN_EMAILS.has(p.email) ? " · admin" : ""}
+                              {p.title ? ` · ${p.title}` : ""}
+                              {p.department ? ` · ${p.department}` : ""}
                             </span>
                           </span>
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{timeAgo(p.lastLoginAt)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
+                        {p.lastLoginAt ? timeAgo(p.lastLoginAt) : <span className="text-neutral-400">never</span>}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{p.artifactsOwned}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{p.viewsMade}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{p.lastViewAt ? timeAgo(p.lastViewAt) : "never"}</td>

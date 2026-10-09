@@ -17,12 +17,14 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name"),
   image: text("image"),
+  /** From the employee directory import; shown in share suggestions. */
+  title: text("title"),
+  department: text("department"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-  lastLoginAt: timestamp("last_login_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  /** Null for people imported from the directory who haven't signed in yet. */
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 });
 
 /**

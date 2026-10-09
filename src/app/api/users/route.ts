@@ -13,16 +13,16 @@ export async function GET(req: Request) {
   const pattern = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
 
   const rows = await db
-    .select({ email: users.email, name: users.name, image: users.image })
+    .select({ email: users.email, name: users.name, image: users.image, title: users.title, department: users.department })
     .from(users)
     .where(
       and(
         ne(users.id, user.id),
-        q ? or(ilike(users.email, pattern), ilike(users.name, pattern)) : undefined,
+        q ? or(ilike(users.email, pattern), ilike(users.name, pattern), ilike(users.title, pattern), ilike(users.department, pattern)) : undefined,
       ),
     )
-    .orderBy(users.email)
-    .limit(8);
+    .orderBy(users.name, users.email)
+    .limit(10);
 
   return NextResponse.json({ users: rows });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-type Suggestion = { email: string; name: string | null; image: string | null };
+type Suggestion = { email: string; name: string | null; image: string | null; title?: string | null; department?: string | null };
 
 /**
  * Multi-email input. Emits the current list via `onChange`; the parent owns the
@@ -140,7 +140,7 @@ export function EmailChips({
             .filter((s) => !value.includes(s.email))
             .map((s) => (
               <option key={s.email} value={s.email}>
-                {s.name ?? undefined}
+                {[s.name, s.title, s.department].filter(Boolean).join(" · ") || undefined}
               </option>
             ))}
         </datalist>
