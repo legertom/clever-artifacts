@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       tags: str("tags"),
       visibility: str("visibility"),
       shares: str("shares"),
+      shareWithReports: str("shareWithReports") === "1",
     });
     return NextResponse.json(r, { status: 201 });
   } catch (e) {

@@ -28,12 +28,15 @@ export function SettingsForm({
   maxBytes,
   origin,
   retentionDays,
+  reports,
 }: {
   artifact: ArtifactDetail;
   domain: string;
   maxBytes: number;
   origin: string;
   retentionDays: number;
+  /** The owner's direct reports (empty when the owner isn't a manager). */
+  reports: { email: string; name: string | null; title: string | null }[];
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(artifact.title);
@@ -43,6 +46,7 @@ export function SettingsForm({
   const [tags, setTags] = useState<string[]>(artifact.tags);
   const [visibility, setVisibility] = useState<Visibility>(artifact.visibility);
   const [shares, setShares] = useState<string[]>(artifact.shares);
+  const [shareWithReports, setShareWithReports] = useState(artifact.shareWithReports);
   const [saving, startSave] = useTransition();
   const [message, setMessage] = useState<Msg>(null);
 
@@ -50,8 +54,8 @@ export function SettingsForm({
 
   function save(e: React.FormEvent) {
     e.preventDefault();
-    if (visibility === "restricted" && shares.length === 0) {
-      setMessage({ kind: "error", text: "Add at least one person, or pick another option." });
+    if (visibility === "restricted" && shares.length === 0 && !shareWithReports) {
+      setMessage({ kind: "error", text: "Add at least one person or your direct reports, or pick another option." });
       return;
     }
     setMessage(null);
@@ -64,6 +68,7 @@ export function SettingsForm({
         tags,
         visibility,
         shares,
+        shareWithReports,
       });
       if (res.ok) {
         setMessage({ kind: "ok", text: "Saved." });
@@ -156,6 +161,9 @@ export function SettingsForm({
           shares={shares}
           onSharesChange={setShares}
           domain={domain}
+          reports={reports}
+          shareWithReports={shareWithReports}
+          onShareWithReportsChange={setShareWithReports}
         />
         <div className="flex items-center gap-3">
           <button type="submit" className="btn-primary" disabled={saving}>
@@ -330,7 +338,12 @@ function Stats({ artifact }: { artifact: ArtifactDetail }) {
               ? "only you"
               : artifact.visibility === "domain"
                 ? "everyone"
-                : `${artifact.shares.length} ${artifact.shares.length === 1 ? "person" : "people"}`}
+                : [
+                    artifact.shares.length ? `${artifact.shares.length} ${artifact.shares.length === 1 ? "person" : "people"}` : null,
+                    artifact.shareWithReports ? "direct reports" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" + ") || "nobody yet"}
           </dd>
         </div>
         <div>

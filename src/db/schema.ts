@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigserial,
+  boolean,
   index,
   integer,
   pgEnum,
@@ -20,6 +21,8 @@ export const users = pgTable("users", {
   /** From the employee directory import; shown in share suggestions. */
   title: text("title"),
   department: text("department"),
+  /** Lower-cased email of this person's manager, from the directory import. */
+  managerEmail: text("manager_email"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -59,6 +62,8 @@ export const artifacts = pgTable(
     sourceUrl: text("source_url"),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     visibility: artifactVisibility("visibility").notNull().default("private"),
+    /** With visibility=restricted: everyone whose manager is the owner may view. */
+    shareWithReports: boolean("share_with_reports").notNull().default(false),
     html: text("html").notNull(),
     htmlBytes: integer("html_bytes").notNull(),
     /** JPEG, base64-encoded. Null until generated. */

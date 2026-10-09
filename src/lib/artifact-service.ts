@@ -46,6 +46,8 @@ export type CreateInput = {
   tags?: string | string[] | null;
   visibility?: string | null;
   shares?: string | string[] | null;
+  /** Share with everyone whose manager is the owner (directory). Only meaningful for restricted. */
+  shareWithReports?: boolean | null;
 };
 
 export type Visibility = "private" | "domain" | "restricted";
@@ -76,8 +78,9 @@ export async function createArtifact(user: SessionUser, input: CreateInput) {
   if (rejected.length) {
     throw new ServiceError(`These addresses can't be shared with: ${rejected.join(", ")}`, 400);
   }
-  if (visibility === "restricted" && emails.length === 0) {
-    throw new ServiceError("Add at least one person, or pick another visibility.", 400);
+  const shareWithReports = visibility === "restricted" && Boolean(input.shareWithReports);
+  if (visibility === "restricted" && emails.length === 0 && !shareWithReports) {
+    throw new ServiceError("Add at least one person or your direct reports, or pick another visibility.", 400);
   }
 
   const id = nanoid(12);
@@ -92,6 +95,7 @@ export async function createArtifact(user: SessionUser, input: CreateInput) {
     sourceUrl: parseSourceUrl(input.sourceUrl),
     tags: parseTags(input.tags),
     visibility,
+    shareWithReports,
     html: input.html,
     htmlBytes: Buffer.byteLength(input.html, "utf8"),
   });
@@ -108,6 +112,7 @@ export type UpdateInput = {
   tags?: string | string[] | null;
   visibility?: string | null;
   shares?: string | string[] | null;
+  shareWithReports?: boolean | null;
 };
 
 /** Update metadata/sharing. Only provided fields change (null clears optional ones). */
@@ -135,6 +140,10 @@ export async function updateArtifact(user: SessionUser, id: string, input: Updat
 
   const visibility = parseVisibility(input.visibility) ?? owned.visibility;
   patch.visibility = visibility;
+  const shareWithReports =
+    visibility === "restricted" &&
+    (input.shareWithReports === undefined || input.shareWithReports === null ? owned.shareWithReports : Boolean(input.shareWithReports));
+  patch.shareWithReports = shareWithReports;
 
   let emails: string[] | null = null;
   if (input.shares !== undefined) {
@@ -143,8 +152,8 @@ export async function updateArtifact(user: SessionUser, id: string, input: Updat
       throw new ServiceError(`These addresses can't be shared with: ${parsed.rejected.join(", ")}`, 400);
     }
     emails = parsed.emails;
-    if (visibility === "restricted" && emails.length === 0) {
-      throw new ServiceError("Add at least one person, or pick another visibility.", 400);
+    if (visibility === "restricted" && emails.length === 0 && !shareWithReports) {
+      throw new ServiceError("Add at least one person or your direct reports, or pick another visibility.", 400);
     }
   }
 

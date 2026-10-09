@@ -1,10 +1,12 @@
 export function VisibilityBadge({
   visibility,
   sharedDirectly,
+  sharedViaReports,
   domain,
 }: {
   visibility: "private" | "domain" | "restricted";
   sharedDirectly?: boolean;
+  sharedViaReports?: boolean;
   domain: string;
 }) {
   if (visibility === "private") {
@@ -21,7 +23,7 @@ export function VisibilityBadge({
   if (sharedDirectly) {
     return (
       <span className="badge border-emerald-200 bg-emerald-50 text-emerald-800">
-        <Dot className="bg-emerald-500" /> Shared with you
+        <Dot className="bg-emerald-500" /> {sharedViaReports ? "Shared with your team" : "Shared with you"}
       </span>
     );
   }

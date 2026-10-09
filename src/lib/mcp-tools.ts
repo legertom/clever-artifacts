@@ -3,7 +3,7 @@ import { ilike, ne, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { adminListArtifacts, adminOverview } from "@/lib/admin";
+import { adminArtifactsPage, adminOverview } from "@/lib/admin";
 import {
   createArtifact,
   deleteForever,
@@ -16,6 +16,7 @@ import {
   updateArtifact,
 } from "@/lib/artifact-service";
 import {
+  directReportsOf,
   getArtifactForViewer,
   getArtifactHtml,
   listTrash,
@@ -55,7 +56,9 @@ function summarize(origin: string, a: ArtifactSummary) {
     source_url: a.sourceUrl,
     tags: a.tags,
     visibility: a.visibility,
+    shared_with_owner_direct_reports: a.shareWithReports || undefined,
     shared_with_you_directly: a.sharedDirectly || undefined,
+    shared_with_you_via_your_manager: a.sharedViaReports || undefined,
     owner: { name: a.ownerName, email: a.ownerEmail },
     size_bytes: a.htmlBytes,
     preview: a.screenshotStatus,
@@ -85,7 +88,14 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     async (_args, ctx) => {
       try {
         const u = userFrom(ctx);
-        return json({ email: u.email, name: u.name, is_admin: u.isAdmin, app_url: origin });
+        const reports = await directReportsOf(u.email);
+        return json({
+          email: u.email,
+          name: u.name,
+          is_admin: u.isAdmin,
+          app_url: origin,
+          direct_reports: reports.map((r) => ({ email: r.email, name: r.name, title: r.title })),
+        });
       } catch (e) {
         return fail(e);
       }
@@ -236,8 +246,9 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         description: z.string().optional(),
         source_url: z.string().optional().describe("Link back to where this came from, e.g. the Claude conversation."),
         tags: z.array(z.string()).optional(),
-        visibility: z.enum(["private", "domain", "restricted"]).optional().describe("private (default): only you. domain: everyone at the company. restricted: only share_with."),
+        visibility: z.enum(["private", "domain", "restricted"]).optional().describe("private (default): only you. domain: everyone at the company. restricted: only share_with and/or your direct reports."),
         share_with: z.array(z.string()).optional().describe(`@${ALLOWED_EMAIL_DOMAIN} email addresses.`),
+        share_with_direct_reports: z.boolean().optional().describe("With visibility=restricted: also everyone who reports to you per the directory (kept current as the team changes)."),
       }),
     },
     async (args, ctx) => {
@@ -252,6 +263,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
           tags: args.tags,
           visibility: args.visibility,
           shares: args.share_with,
+          shareWithReports: args.share_with_direct_reports,
         });
         return json({ id: r.id, slug: r.slug, title: r.title, url: `${origin}/a/${r.slug}`, preview_generated: r.screenshotOk });
       } catch (e) {
@@ -275,6 +287,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
         tags: z.array(z.string()).optional(),
         visibility: z.enum(["private", "domain", "restricted"]).optional(),
         share_with: z.array(z.string()).optional(),
+        share_with_direct_reports: z.boolean().optional(),
       }),
     },
     async (args, ctx) => {
@@ -289,6 +302,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
           tags: args.tags,
           visibility: args.visibility,
           shares: args.share_with,
+          shareWithReports: args.share_with_direct_reports,
         });
         const a = await getArtifactForViewer(id, user);
         return json({ ok: true, url: `${origin}/a/${r.slug}`, artifact: a ? { ...summarize(origin, a), shared_with: a.shares } : undefined });
@@ -426,9 +440,10 @@ export function registerArtifactTools(server: McpServer, origin: string) {
       try {
         const user = userFrom(ctx);
         if (!user.isAdmin) throw new ServiceError("Admins only.", 403);
-        const [overview, rows] = await Promise.all([adminOverview(), adminListArtifacts()]);
+        const [overview, { rows, total }] = await Promise.all([adminOverview(), adminArtifactsPage({ sort: "views", page: 1 })]);
         return json({
           overview,
+          total_artifacts: total,
           artifacts: rows.slice(0, limit).map((r) => ({
             title: r.title,
             url: `${origin}/a/${r.slug}`,

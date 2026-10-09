@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { SettingsForm } from "@/components/settings-form";
-import { getArtifactForViewer, resolveHandle } from "@/lib/artifacts";
+import { directReportsOf, getArtifactForViewer, resolveHandle } from "@/lib/artifacts";
 import { ALLOWED_EMAIL_DOMAIN, MAX_HTML_BYTES, TRASH_RETENTION_DAYS } from "@/lib/config";
 import { getOrigin } from "@/lib/origin";
 import { requireUser } from "@/lib/session";
@@ -18,7 +18,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
 
   const a = await getArtifactForViewer(resolved.id, user);
   if (!a || !a.canEdit) notFound();
-  const origin = await getOrigin();
+  const [origin, reports] = await Promise.all([getOrigin(), directReportsOf(a.ownerEmail)]);
 
   return (
     <>
@@ -39,6 +39,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
             maxBytes={MAX_HTML_BYTES}
             origin={origin}
             retentionDays={TRASH_RETENTION_DAYS}
+            reports={reports}
           />
         </div>
       </main>

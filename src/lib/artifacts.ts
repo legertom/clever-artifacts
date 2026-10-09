@@ -21,6 +21,7 @@ const summaryColumns = {
   sourceUrl: artifacts.sourceUrl,
   tags: artifacts.tags,
   visibility: artifacts.visibility,
+  shareWithReports: artifacts.shareWithReports,
   htmlBytes: artifacts.htmlBytes,
   screenshotStatus: artifacts.screenshotStatus,
   viewCount: artifacts.viewCount,
@@ -42,6 +43,8 @@ export type ArtifactSummary = {
   sourceUrl: string | null;
   tags: string[];
   visibility: ArtifactVisibility;
+  /** Owner's direct reports (per the directory) may view. */
+  shareWithReports: boolean;
   htmlBytes: number;
   screenshotStatus: "pending" | "ready" | "failed";
   viewCount: number;
@@ -53,8 +56,10 @@ export type ArtifactSummary = {
   ownerName: string | null;
   ownerEmail: string;
   ownerImage: string | null;
-  /** True when the viewer was added to the share list explicitly. */
+  /** True when the viewer was added to the share list explicitly, or reports to the owner of a reports-shared artifact. */
   sharedDirectly: boolean;
+  /** True when access comes from reporting to the owner (and not from the explicit list). */
+  sharedViaReports: boolean;
 };
 
 export type ArtifactDetail = ArtifactSummary & {
@@ -64,13 +69,44 @@ export type ArtifactDetail = ArtifactSummary & {
   isOwner: boolean;
 };
 
-function sharedWithEmail(email: string) {
+function explicitShare(email: string) {
   return exists(
     db
       .select({ one: sql`1` })
       .from(artifactShares)
       .where(and(eq(artifactShares.artifactId, artifacts.id), eq(artifactShares.email, email))),
   );
+}
+
+/** The artifact is shared with the owner's direct reports and this viewer is one of them. */
+function viaReports(userId: string) {
+  return sql<boolean>`(${artifacts.shareWithReports} and exists (
+    select 1 from ${users} v join ${users} o on lower(o.email) = v.manager_email
+    where v.id = ${userId} and o.id = ${artifacts.ownerId}
+  ))`;
+}
+
+/** Everything that counts as "shared with me": explicit list or via my manager. */
+function sharedWithUser(user: SessionUser) {
+  return or(explicitShare(normalizeEmail(user.email)), viaReports(user.id))!;
+}
+
+function accessColumns(user: SessionUser) {
+  const direct = explicitShare(normalizeEmail(user.email));
+  const reports = viaReports(user.id);
+  return {
+    sharedDirectly: sql<boolean>`(${direct} or ${reports})`,
+    sharedViaReports: sql<boolean>`(${reports} and not ${direct})`,
+  };
+}
+
+/** People whose manager (per the directory) is this email. */
+export async function directReportsOf(managerEmail: string) {
+  return db
+    .select({ email: users.email, name: users.name, title: users.title })
+    .from(users)
+    .where(eq(users.managerEmail, normalizeEmail(managerEmail)))
+    .orderBy(asc(sql`lower(coalesce(${users.name}, ${users.email}))`));
 }
 
 /**
@@ -99,7 +135,7 @@ export function purgeDate(trashedAt: Date): Date {
 
 export async function listMine(user: SessionUser): Promise<ArtifactSummary[]> {
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false` })
+    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false`, sharedViaReports: sql<boolean>`false` })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(and(eq(artifacts.ownerId, user.id), isNull(artifacts.trashedAt)))
@@ -108,16 +144,16 @@ export async function listMine(user: SessionUser): Promise<ArtifactSummary[]> {
 
 /** Artifacts owned by others that this user can open: domain-wide ones plus explicit shares. */
 export async function listSharedWithMe(user: SessionUser): Promise<ArtifactSummary[]> {
-  const direct = sharedWithEmail(normalizeEmail(user.email));
+  const shared = sharedWithUser(user);
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`${direct}` })
+    .select({ ...summaryColumns, ...accessColumns(user) })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(
       and(
         ne(artifacts.ownerId, user.id),
         isNull(artifacts.trashedAt),
-        or(eq(artifacts.visibility, "domain"), direct),
+        or(eq(artifacts.visibility, "domain"), shared),
       ),
     )
     .orderBy(desc(artifacts.updatedAt));
@@ -126,7 +162,7 @@ export async function listSharedWithMe(user: SessionUser): Promise<ArtifactSumma
 /** Trashed artifacts: your own, or everyone's for admins. */
 export async function listTrash(user: SessionUser): Promise<ArtifactSummary[]> {
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false` })
+    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`false`, sharedViaReports: sql<boolean>`false` })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(
@@ -219,16 +255,15 @@ function daysAgo(n: number): Date {
  * tags, owner); `#tag` in the query requires that exact tag.
  */
 export async function queryArtifacts(user: SessionUser, query: ArtifactQuery = {}): Promise<ArtifactSummary[]> {
-  const email = normalizeEmail(user.email);
-  const direct = sharedWithEmail(email);
+  const shared = sharedWithUser(user);
   const mine = eq(artifacts.ownerId, user.id);
   const company = eq(artifacts.visibility, "domain");
 
   const scopeCond: Record<Scope, SQL | undefined> = {
-    all: or(mine, company, direct),
+    all: or(mine, company, shared),
     mine,
-    others: and(ne(artifacts.ownerId, user.id), or(company, direct)),
-    direct: and(ne(artifacts.ownerId, user.id), direct),
+    others: and(ne(artifacts.ownerId, user.id), or(company, shared)),
+    direct: and(ne(artifacts.ownerId, user.id), shared),
     company: and(ne(artifacts.ownerId, user.id), company),
   };
 
@@ -278,7 +313,7 @@ export async function queryArtifacts(user: SessionUser, query: ArtifactQuery = {
   }[sort];
 
   return db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`${direct}` })
+    .select({ ...summaryColumns, ...accessColumns(user) })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(and(...conditions.filter((c): c is SQL => Boolean(c))))
@@ -300,10 +335,9 @@ export type Facets = {
 
 /** Distinct owners and tags across everything the user can open (for filter menus). */
 export async function artifactFacets(user: SessionUser): Promise<Facets> {
-  const direct = sharedWithEmail(normalizeEmail(user.email));
   const access = and(
     isNull(artifacts.trashedAt),
-    or(eq(artifacts.ownerId, user.id), eq(artifacts.visibility, "domain"), direct),
+    or(eq(artifacts.ownerId, user.id), eq(artifacts.visibility, "domain"), sharedWithUser(user)),
   );
   const [owners, tags] = await Promise.all([
     db
@@ -362,9 +396,8 @@ export async function resolveHandle(handle: string): Promise<Resolved | null> {
 
 /** Metadata for one artifact, or null when it doesn't exist or the user may not see it. */
 export async function getArtifactForViewer(id: string, user: SessionUser): Promise<ArtifactDetail | null> {
-  const email = normalizeEmail(user.email);
   const [row] = await db
-    .select({ ...summaryColumns, sharedDirectly: sql<boolean>`${sharedWithEmail(email)}` })
+    .select({ ...summaryColumns, ...accessColumns(user) })
     .from(artifacts)
     .innerJoin(users, eq(users.id, artifacts.ownerId))
     .where(eq(artifacts.id, id))
@@ -388,7 +421,6 @@ export async function getArtifactForViewer(id: string, user: SessionUser): Promi
 
 /** Raw HTML for one artifact, or null when not found / not permitted. */
 export async function getArtifactHtml(id: string, user: SessionUser) {
-  const email = normalizeEmail(user.email);
   const [row] = await db
     .select({
       id: artifacts.id,
@@ -398,7 +430,7 @@ export async function getArtifactHtml(id: string, user: SessionUser) {
       trashedAt: artifacts.trashedAt,
       html: artifacts.html,
       updatedAt: artifacts.updatedAt,
-      sharedDirectly: sql<boolean>`${sharedWithEmail(email)}`,
+      sharedDirectly: sql<boolean>`${sharedWithUser(user)}`,
     })
     .from(artifacts)
     .where(eq(artifacts.id, id))
@@ -409,7 +441,6 @@ export async function getArtifactHtml(id: string, user: SessionUser) {
 
 /** Screenshot for one artifact, or null when not found / not permitted. */
 export async function getArtifactScreenshot(id: string, user: SessionUser) {
-  const email = normalizeEmail(user.email);
   const [row] = await db
     .select({
       ownerId: artifacts.ownerId,
@@ -418,7 +449,7 @@ export async function getArtifactScreenshot(id: string, user: SessionUser) {
       screenshot: artifacts.screenshot,
       screenshotStatus: artifacts.screenshotStatus,
       updatedAt: artifacts.updatedAt,
-      sharedDirectly: sql<boolean>`${sharedWithEmail(email)}`,
+      sharedDirectly: sql<boolean>`${sharedWithUser(user)}`,
     })
     .from(artifacts)
     .where(eq(artifacts.id, id))
@@ -433,6 +464,7 @@ const editableColumns = {
   title: artifacts.title,
   ownerId: artifacts.ownerId,
   visibility: artifacts.visibility,
+  shareWithReports: artifacts.shareWithReports,
   trashedAt: artifacts.trashedAt,
 };
 

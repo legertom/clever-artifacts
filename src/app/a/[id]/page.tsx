@@ -52,7 +52,7 @@ export default async function ArtifactPage({ params }: Props) {
               <p className="hidden truncate text-[11px] leading-3 text-neutral-500 lg:block">{a.description}</p>
             ) : null}
           </div>
-          <VisibilityBadge visibility={a.visibility} sharedDirectly={a.sharedDirectly} domain={ALLOWED_EMAIL_DOMAIN} />
+          <VisibilityBadge visibility={a.visibility} sharedDirectly={a.sharedDirectly} sharedViaReports={a.sharedViaReports} domain={ALLOWED_EMAIL_DOMAIN} />
           {a.tags.length ? (
             <span className="hidden gap-1 xl:flex">
               {a.tags.slice(0, 4).map((t) => (

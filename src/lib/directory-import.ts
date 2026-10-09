@@ -5,7 +5,13 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { isAllowedEmail, normalizeEmail } from "@/lib/config";
 
-export type DirectoryRow = { email: string; name: string | null; title: string | null; department: string | null };
+export type DirectoryRow = {
+  email: string;
+  name: string | null;
+  title: string | null;
+  department: string | null;
+  managerEmail: string | null;
+};
 
 const HEADERS = {
   email: ["email", "e-mail", "work email", "email address", "mail"],
@@ -14,6 +20,7 @@ const HEADERS = {
   last: ["last name", "last", "surname", "family name"],
   title: ["title", "job title", "role", "position"],
   department: ["department", "dept", "team", "org", "function"],
+  managerEmail: ["manager email", "manager e-mail", "manager's email", "reports to email", "supervisor email", "manager_email"],
 };
 
 function cellText(v: unknown): string {
@@ -102,6 +109,7 @@ export async function parseDirectory(
     last: findColumn(header, HEADERS.last),
     title: findColumn(header, HEADERS.title),
     department: findColumn(header, HEADERS.department),
+    managerEmail: findColumn(header, HEADERS.managerEmail),
   };
   if (col.email < 0) throw new Error(`Couldn't find an email column. Headers seen: ${header.join(", ")}`);
 
@@ -124,6 +132,10 @@ export async function parseDirectory(
       name: name ? name.slice(0, 120) : null,
       title: col.title >= 0 ? (r[col.title]?.trim().slice(0, 120) ?? null) || null : null,
       department: col.department >= 0 ? (r[col.department]?.trim().slice(0, 120) ?? null) || null : null,
+      managerEmail: (() => {
+        const m = col.managerEmail >= 0 ? normalizeEmail(r[col.managerEmail] ?? "") : "";
+        return m && isAllowedEmail(m) && m !== email ? m : null;
+      })(),
     });
   }
   return { rows, skipped, columns: header };
@@ -140,13 +152,23 @@ export async function upsertDirectory(rows: DirectoryRow[]): Promise<{ inserted:
     const chunk = rows.slice(i, i + 100);
     const result = await db
       .insert(users)
-      .values(chunk.map((r) => ({ email: r.email, name: r.name, title: r.title, department: r.department, lastLoginAt: null })))
+      .values(
+        chunk.map((r) => ({
+          email: r.email,
+          name: r.name,
+          title: r.title,
+          department: r.department,
+          managerEmail: r.managerEmail,
+          lastLoginAt: null,
+        })),
+      )
       .onConflictDoUpdate({
         target: users.email,
         set: {
           name: sql`coalesce(${users.name}, excluded.name)`,
           title: sql`coalesce(excluded.title, ${users.title})`,
           department: sql`coalesce(excluded.department, ${users.department})`,
+          managerEmail: sql`coalesce(excluded.manager_email, ${users.managerEmail})`,
         },
       })
       .returning({ inserted: sql<boolean>`(xmax = 0)` });

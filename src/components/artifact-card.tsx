@@ -80,7 +80,7 @@ export function ArtifactCard({
               <EyeIcon /> {a.viewCount}
             </span>
           </div>
-          <VisibilityBadge visibility={a.visibility} sharedDirectly={a.sharedDirectly} domain={domain} />
+          <VisibilityBadge visibility={a.visibility} sharedDirectly={a.sharedDirectly} sharedViaReports={a.sharedViaReports} domain={domain} />
         </div>
       </div>
     </Link>

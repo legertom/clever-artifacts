@@ -8,7 +8,19 @@ import { formatBytes } from "@/lib/format";
 import { extractTitle } from "@/lib/html";
 import { slugify } from "@/lib/slug";
 
-export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBytes: number; origin: string }) {
+type Report = { email: string; name: string | null; title: string | null };
+
+export function UploadForm({
+  domain,
+  maxBytes,
+  origin,
+  reports,
+}: {
+  domain: string;
+  maxBytes: number;
+  origin: string;
+  reports: Report[];
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -20,6 +32,7 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
   const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<Visibility>("private");
   const [shares, setShares] = useState<string[]>([]);
+  const [shareWithReports, setShareWithReports] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "uploading">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -49,8 +62,8 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
       setError("Choose an HTML file to upload.");
       return;
     }
-    if (visibility === "restricted" && shares.length === 0) {
-      setError("Add at least one person, or pick another option.");
+    if (visibility === "restricted" && shares.length === 0 && !shareWithReports) {
+      setError("Add at least one person or your direct reports, or pick another option.");
       return;
     }
     setStatus("uploading");
@@ -64,6 +77,7 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
     fd.set("tags", tags.join(","));
     fd.set("visibility", visibility);
     fd.set("shares", shares.join(","));
+    fd.set("shareWithReports", shareWithReports ? "1" : "0");
     try {
       const res = await fetch("/api/artifacts", { method: "POST", body: fd });
       const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string };
@@ -225,6 +239,9 @@ export function UploadForm({ domain, maxBytes, origin }: { domain: string; maxBy
         shares={shares}
         onSharesChange={setShares}
         domain={domain}
+        reports={reports}
+        shareWithReports={shareWithReports}
+        onShareWithReportsChange={setShareWithReports}
       />
 
       {error ? (

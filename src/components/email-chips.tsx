@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-
-type Suggestion = { email: string; name: string | null; image: string | null; title?: string | null; department?: string | null };
+import { useId, useRef, useState } from "react";
+import { SuggestionList, usePeopleSuggestions } from "@/components/people-suggest";
 
 /**
- * Multi-email input. Emits the current list via `onChange`; the parent owns the
- * state. Suggestions come from people who have signed in before.
+ * Multi-email input with a people picker. Emits the current list via
+ * `onChange`; the parent owns the state. Suggestions come from the directory
+ * and everyone who has signed in.
  */
 export function EmailChips({
   value,
@@ -22,25 +22,12 @@ export function EmailChips({
   autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState("");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const q = draft.trim();
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/users?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
-        .then((r) => (r.ok ? r.json() : { users: [] }))
-        .then((d: { users: Suggestion[] }) => setSuggestions(d.users ?? []))
-        .catch(() => {});
-    }, 150);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [draft]);
+  const suggestions = usePeopleSuggestions(draft, { enabled: open }).filter((p) => !value.includes(p.email));
 
   function normalize(raw: string): string {
     let e = raw.trim().toLowerCase();
@@ -64,20 +51,23 @@ export function EmailChips({
     return true;
   }
 
-  function commitDraft() {
-    const parts = draft.split(/[\s,;]+/).filter(Boolean);
+  function addMany(text: string) {
+    const parts = text.split(/[\s,;]+/).filter(Boolean);
     let ok = true;
     for (const p of parts) ok = add(p) && ok;
     if (ok) setDraft("");
   }
 
-  function remove(email: string) {
-    onChange(value.filter((v) => v !== email));
+  function pick(email: string) {
+    if (!value.includes(email)) onChange([...value, email]);
+    setDraft("");
+    setError(null);
+    setActive(0);
     inputRef.current?.focus();
   }
 
   return (
-    <div>
+    <div className="relative">
       <div
         className="input flex min-h-[42px] cursor-text flex-wrap items-center gap-1.5 py-1.5"
         onClick={() => inputRef.current?.focus()}
@@ -90,7 +80,10 @@ export function EmailChips({
             {email}
             <button
               type="button"
-              onClick={() => remove(email)}
+              onClick={() => {
+                onChange(value.filter((v) => v !== email));
+                inputRef.current?.focus();
+              }}
               className="grid size-4 place-items-center rounded text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800"
               aria-label={`Remove ${email}`}
             >
@@ -102,49 +95,68 @@ export function EmailChips({
         ))}
         <input
           ref={inputRef}
-          list={listId}
           value={draft}
           autoFocus={autoFocus}
+          role="combobox"
+          aria-expanded={open && suggestions.length > 0}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            setOpen(false);
+            if (draft.trim()) addMany(draft);
+          }}
           onChange={(e) => {
             setDraft(e.target.value);
+            setActive(0);
+            setOpen(true);
             setError(null);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
-              if (draft.trim()) {
+            if (e.key === "ArrowDown" && suggestions.length) {
+              e.preventDefault();
+              setOpen(true);
+              setActive((i) => (i + 1) % suggestions.length);
+            } else if (e.key === "ArrowUp" && suggestions.length) {
+              e.preventDefault();
+              setActive((i) => (i - 1 + suggestions.length) % suggestions.length);
+            } else if (e.key === "Enter" || e.key === "Tab" || e.key === ",") {
+              if (open && suggestions[active] && (e.key !== "Tab" || draft.trim())) {
                 e.preventDefault();
-                commitDraft();
+                pick(suggestions[active].email);
+              } else if (draft.trim()) {
+                e.preventDefault();
+                addMany(draft);
               }
+            } else if (e.key === "Escape") {
+              setOpen(false);
             } else if (e.key === "Backspace" && !draft && value.length) {
               onChange(value.slice(0, -1));
             }
           }}
-          onBlur={() => draft.trim() && commitDraft()}
           onPaste={(e) => {
             const text = e.clipboardData.getData("text");
             if (/[\s,;]/.test(text)) {
               e.preventDefault();
-              const parts = text.split(/[\s,;]+/).filter(Boolean);
-              let ok = true;
-              for (const p of parts) ok = add(p) && ok;
-              if (ok) setDraft("");
+              addMany(text);
             }
           }}
-          placeholder={value.length ? "" : (placeholder ?? `name@${domain}`)}
+          placeholder={value.length ? "" : (placeholder ?? "Type a name or email")}
           className="min-w-[160px] flex-1 border-0 bg-transparent p-0 text-sm outline-none placeholder:text-neutral-400 focus:ring-0"
           autoComplete="off"
           spellCheck={false}
         />
-        <datalist id={listId}>
-          {suggestions
-            .filter((s) => !value.includes(s.email))
-            .map((s) => (
-              <option key={s.email} value={s.email}>
-                {[s.name, s.title, s.department].filter(Boolean).join(" · ") || undefined}
-              </option>
-            ))}
-        </datalist>
       </div>
+      {open ? (
+        <SuggestionList
+          id={listId}
+          people={suggestions}
+          activeIndex={active}
+          onHover={setActive}
+          onPick={(p) => pick(p.email)}
+          emptyText={draft.trim() ? `No one matches “${draft.trim()}” — press Enter to add the address as typed.` : undefined}
+        />
+      ) : null}
       {error ? <p className="mt-1.5 text-xs text-red-600">{error}</p> : null}
     </div>
   );

@@ -10,13 +10,21 @@ export function VisibilityPicker({
   shares,
   onSharesChange,
   domain,
+  reports,
+  shareWithReports,
+  onShareWithReportsChange,
 }: {
   visibility: Visibility;
   onVisibilityChange: (v: Visibility) => void;
   shares: string[];
   onSharesChange: (emails: string[]) => void;
   domain: string;
+  /** The owner's direct reports from the directory; empty for non-managers. */
+  reports?: { email: string; name: string | null; title: string | null }[];
+  shareWithReports?: boolean;
+  onShareWithReportsChange?: (on: boolean) => void;
 }) {
+  const reportsList = reports ?? [];
   return (
     <fieldset>
       <legend className="label">Who can view</legend>
@@ -50,6 +58,30 @@ export function VisibilityPicker({
           </label>
           <EmailChips value={shares} onChange={onSharesChange} domain={domain} />
           <p className="help">Type a name or address and press Enter. Paste a list to add several at once.</p>
+          {visibility === "restricted" && reportsList.length > 0 && onShareWithReportsChange ? (
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-300 bg-white p-3 transition hover:bg-neutral-50">
+              <input
+                type="checkbox"
+                checked={Boolean(shareWithReports)}
+                onChange={(e) => onShareWithReportsChange(e.target.checked)}
+                className="mt-0.5 accent-brand-600"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-neutral-900">
+                  My direct reports
+                  <span className="ml-1.5 font-normal text-neutral-500">({reportsList.length})</span>
+                </span>
+                <span className="block text-xs text-neutral-500">
+                  Everyone who reports to you in the directory, kept up to date as the team changes:{" "}
+                  {reportsList
+                    .slice(0, 6)
+                    .map((r) => r.name ?? r.email)
+                    .join(", ")}
+                  {reportsList.length > 6 ? ` and ${reportsList.length - 6} more` : ""}.
+                </span>
+              </span>
+            </label>
+          ) : null}
         </div>
       ) : null}
     </fieldset>
