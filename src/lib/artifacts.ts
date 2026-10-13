@@ -134,17 +134,15 @@ export async function directReportsOf(managerEmail: string) {
 }
 
 /**
- * private    → owner only (admins included out; they see it listed in /admin but can't open it).
+ * private    → owner only (plus admins, who can open everything).
  * domain     → any signed-in person; restricted → explicit share list.
- * Trashed artifacts are visible only to the owner (and admins, for non-private ones).
+ * Trashed artifacts are visible only to the owner and admins.
  */
 function canView(
   row: { ownerId: string; visibility: ArtifactVisibility; trashedAt: Date | null; sharedDirectly: boolean },
   user: SessionUser,
 ): boolean {
-  if (row.ownerId === user.id) return true;
-  if (row.visibility === "private") return false;
-  if (user.isAdmin) return true;
+  if (row.ownerId === user.id || user.isAdmin) return true;
   if (row.trashedAt) return false;
   return row.visibility === "domain" || row.sharedDirectly;
 }
@@ -495,13 +493,11 @@ const editableColumns = {
   trashedAt: artifacts.trashedAt,
 };
 
-/** Lookup used by content/sharing mutations: the owner, or an admin for anything not private. */
+/** Lookup used by content/sharing mutations: the owner, or an admin. */
 export async function getEditableArtifact(id: string, user: SessionUser) {
   const [row] = await db.select(editableColumns).from(artifacts).where(eq(artifacts.id, id)).limit(1);
   if (!row) return null;
-  if (row.ownerId === user.id) return row;
-  if (user.isAdmin && row.visibility !== "private") return row;
-  return null;
+  return row.ownerId === user.id || user.isAdmin ? row : null;
 }
 
 /** Lookup used by trash / restore / delete: the owner, or an admin for anything (moderation). */

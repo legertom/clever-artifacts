@@ -335,7 +335,7 @@ function Stats({ artifact }: { artifact: ArtifactDetail }) {
           <dt className="text-xs uppercase tracking-wide text-neutral-500">Shared with</dt>
           <dd className="mt-0.5 text-neutral-900">
             {artifact.visibility === "private"
-              ? "only you"
+              ? artifact.isOwner ? "only you" : "only the owner"
               : artifact.visibility === "domain"
                 ? "everyone"
                 : [

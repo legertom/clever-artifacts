@@ -95,7 +95,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Sear
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 sm:grid-cols-3 sm:px-6">
             <Stat value="$0" label="to open an artifact again. The data is baked in, so nothing re-runs." />
             <Stat value="1 link" label="per artifact, readable and permanent. Rename it and the old link still works." />
-            <Stat value="Only you" label="can see a new upload until you decide who else should." />
+            <Stat value="Only you" label="(and the admins) can see a new upload until you decide who else should." />
           </div>
         </section>
 
@@ -110,7 +110,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Sear
             <Feature
               icon={<IconLock />}
               title="Private by default"
-              text="New uploads are visible only to you. Open them up to specific teammates by email, or to everyone at the company, whenever you're ready."
+              text="New uploads are visible only to you and the app's admins. Open them up to specific teammates by email, or to everyone at the company, whenever you're ready."
             />
             <Feature
               icon={<IconLink />}

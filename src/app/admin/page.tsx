@@ -77,13 +77,9 @@ export default async function AdminOverviewPage() {
                 {top.map((a) => (
                   <tr key={a.id}>
                     <td className="max-w-[300px] px-3 py-2">
-                      {a.visibility === "private" ? (
-                        <span className="block truncate font-medium text-neutral-700">{a.title}</span>
-                      ) : (
-                        <Link href={`/a/${a.slug}`} className="block truncate font-medium text-neutral-900 hover:underline">
-                          {a.title}
-                        </Link>
-                      )}
+                      <Link href={`/a/${a.slug}`} className="block truncate font-medium text-neutral-900 hover:underline">
+                        {a.title}
+                      </Link>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       <span className="inline-flex items-center gap-1.5">
@@ -118,13 +114,9 @@ export default async function AdminOverviewPage() {
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-medium text-neutral-900">{v.viewerName ?? v.viewerEmail}</span>
                     <span className="text-neutral-500"> opened </span>
-                    {v.visibility === "private" ? (
-                      <span className="text-neutral-700">{v.title}</span>
-                    ) : (
-                      <Link href={`/a/${v.slug}`} className="text-neutral-800 hover:underline">
-                        {v.title}
-                      </Link>
-                    )}
+                    <Link href={`/a/${v.slug}`} className="text-neutral-800 hover:underline">
+                      {v.title}
+                    </Link>
                   </span>
                   <span className="shrink-0 text-xs text-neutral-400">{timeAgo(v.viewedAt)}</span>
                 </li>

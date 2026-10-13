@@ -46,13 +46,9 @@ export default async function AdminActivityPage({ searchParams }: { searchParams
                   {v.viewerName ?? v.viewerEmail}
                 </Link>
                 <span className="text-neutral-500"> opened </span>
-                {v.visibility === "private" ? (
-                  <span className="text-neutral-700">{v.title}</span>
-                ) : (
-                  <Link href={`/a/${v.slug}`} className="text-neutral-800 hover:underline">
-                    {v.title}
-                  </Link>
-                )}
+                <Link href={`/a/${v.slug}`} className="text-neutral-800 hover:underline">
+                  {v.title}
+                </Link>
                 {v.trashedAt ? <span className="ml-1.5 text-xs text-amber-700">(in trash)</span> : null}
               </span>
               <time className="shrink-0 text-xs text-neutral-400" dateTime={v.viewedAt.toISOString()} title={v.viewedAt.toLocaleString()}>

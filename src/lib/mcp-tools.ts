@@ -150,7 +150,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
     {
       title: "Search artifacts",
       description:
-        "Search everything you can open: your own artifacts, ones shared with you directly, and ones open to everyone at the company. Matches title, description, tags and owner; every word must match, and #tag matches a tag exactly. Private artifacts belonging to others are never returned.",
+        "Search everything you can open: your own artifacts, ones shared with you directly, and ones open to everyone at the company. Matches title, description, tags and owner; every word must match, and #tag matches a tag exactly. Private artifacts belonging to others are never returned (admins can still open them by id).",
       inputSchema: z.object({
         query: z.string().optional().describe("Words to match; omit to browse with filters only."),
         scope: z.enum(SCOPES).default("all").describe("all | mine | others (anything from others you can see) | direct (shared with you by name) | company (open to everyone)"),

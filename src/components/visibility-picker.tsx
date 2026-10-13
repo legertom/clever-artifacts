@@ -33,7 +33,7 @@ export function VisibilityPicker({
           checked={visibility === "private"}
           onSelect={() => onVisibilityChange("private")}
           title="Only me"
-          description="Nobody else can open it, not even admins."
+          description="Nobody else can open it, apart from admins."
         />
         <Option
           checked={visibility === "restricted"}

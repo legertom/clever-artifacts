@@ -20,7 +20,7 @@ GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
   top bar puts the link on the clipboard.
 - **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
   visibility (*Only me* by default, *Specific people*, or *Everyone at clever.com*), view count.
-  Private artifacts can't be opened by anyone else, admins included. Under *Specific people*,
+  Private artifacts can't be opened by anyone else except admins. Under *Specific people*,
   managers (per the directory) can also tick *My direct reports*, which follows the org chart.
 - **Owner actions** – rename, change the link, edit sharing, replace the HTML,
   regenerate the preview, move to trash, restore, delete permanently.
