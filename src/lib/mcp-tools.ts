@@ -212,6 +212,7 @@ export function registerArtifactTools(server: McpServer, origin: string) {
           can_edit: a.canEdit,
           shared_with: a.canEdit ? a.shares : undefined,
           raw_html_url: `${origin}/a/${a.slug}/raw`,
+          download_url: `${origin}/a/${a.slug}/download`,
         });
       } catch (e) {
         return fail(e);

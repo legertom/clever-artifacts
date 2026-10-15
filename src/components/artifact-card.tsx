@@ -88,7 +88,7 @@ export function ArtifactCard({
         </div>
       </Link>
       <CardActions
-        artifact={{ id: a.id, title: a.title, favorited: a.favorited }}
+        artifact={{ id: a.id, slug: a.slug, title: a.title, favorited: a.favorited }}
         canTrash={isMine || viewer.isAdmin}
         retentionDays={retentionDays}
       />

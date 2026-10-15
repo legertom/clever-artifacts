@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteArtifactForeverAction, restoreArtifactAction } from "@/actions/artifacts";
 import { Avatar } from "@/components/avatar";
+import { DownloadLink } from "@/components/download-link";
 import { Spinner } from "@/components/upload-form";
 import { purgeDate, type ArtifactSummary } from "@/lib/artifacts";
 import { formatBytes, timeAgo } from "@/lib/format";
@@ -81,6 +82,9 @@ function TrashRow({ artifact: a, showOwner }: { artifact: ArtifactSummary; showO
         {error ? <p className="mt-1 text-xs text-red-700">{error}</p> : null}
       </div>
       <div className="flex items-center gap-2">
+        <DownloadLink artifact={a} className="btn-ghost px-3 py-1.5">
+          Download
+        </DownloadLink>
         <button
           type="button"
           className="btn-secondary px-3 py-1.5"

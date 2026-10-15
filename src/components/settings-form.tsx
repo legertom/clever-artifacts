@@ -9,6 +9,7 @@ import {
   updateArtifact,
 } from "@/actions/artifacts";
 import { ChipsInput } from "@/components/chips";
+import { DownloadLink } from "@/components/download-link";
 import { Spinner } from "@/components/upload-form";
 import { VisibilityPicker, type Visibility } from "@/components/visibility-picker";
 import type { ArtifactDetail } from "@/lib/artifacts";
@@ -256,6 +257,9 @@ function ReplaceFile({ artifact, maxBytes }: { artifact: ArtifactDetail; maxByte
         <button type="button" className="btn-secondary" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? <Spinner /> : null} Choose new file…
         </button>
+        <DownloadLink artifact={artifact} className="btn-ghost">
+          Download current file
+        </DownloadLink>
         <Message msg={msg} />
       </div>
     </section>

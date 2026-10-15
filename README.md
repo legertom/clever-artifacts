@@ -18,6 +18,9 @@ GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
 - **Pretty links** – `/a/<slug>` generated from the name (or typed by the uploader);
   editable later, and old links keep redirecting. A *Copy link* button in the viewer's
   top bar puts the link on the clipboard.
+- **Download** – anyone who can open an artifact can save its HTML file, from the viewer's
+  top bar, a card's hover strip, the Trash tab or *Share & settings*. Files are named
+  `<Title> (<slug>).html`.
 - **Metadata** – name, description, source link (e.g. the Claude conversation), tags,
   visibility (*Only me* by default, *Specific people*, or *Everyone at clever.com*), view count.
   Private artifacts can't be opened by anyone else except admins. Under *Specific people*,

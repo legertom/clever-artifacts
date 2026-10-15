@@ -5,6 +5,7 @@ import { FavoriteButton } from "@/components/artifact-actions";
 import { EyeIcon } from "@/components/artifact-card";
 import { Avatar } from "@/components/avatar";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { DownloadLink } from "@/components/download-link";
 import { Logo } from "@/components/logo";
 import { VisibilityBadge } from "@/components/visibility-badge";
 import { getArtifactForViewer, purgeDate, resolveHandle } from "@/lib/artifacts";
@@ -80,6 +81,9 @@ export default async function ArtifactPage({ params }: Props) {
           </div>
           {!a.trashedAt ? <FavoriteButton artifact={{ id: a.id, favorited: a.favorited }} /> : null}
           <CopyLinkButton url={shareUrl} />
+          <DownloadLink artifact={a} className="btn-ghost px-2.5 py-1.5">
+            <span className="hidden sm:inline">Download</span>
+          </DownloadLink>
           {a.sourceUrl ? (
             <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost px-2.5 py-1.5" title={a.sourceUrl}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

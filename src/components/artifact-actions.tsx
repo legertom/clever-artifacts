@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { setFavoriteAction, trashArtifactAction } from "@/actions/artifacts";
+import { DownloadLink } from "@/components/download-link";
 import { Spinner } from "@/components/upload-form";
 
-type Target = { id: string; title: string; favorited: boolean };
+type Target = { id: string; slug: string; title: string; favorited: boolean };
 
 /**
- * Star + trash for one artifact card. The strip slides up over the card's
+ * Star, download and trash for one artifact card. The strip slides up over the card's
  * footer on hover (or keyboard focus); on touch devices, which have no hover,
  * it sits below the footer instead. Must be rendered inside a `group relative`
  * container.
@@ -19,7 +20,7 @@ export function CardActions({
   retentionDays,
 }: {
   artifact: Target;
-  /** Owners and admins may trash; everyone who can open the artifact may star it. */
+  /** Owners and admins may trash; everyone who can open the artifact may star and download it. */
   canTrash: boolean;
   retentionDays: number;
 }) {
@@ -38,8 +39,12 @@ export function CardActions({
       ) : null}
 
       <div className="absolute inset-x-0 bottom-0 flex translate-y-full items-center gap-3 border-t border-neutral-200 bg-white/95 px-2.5 py-2 backdrop-blur-sm transition-transform duration-200 ease-out group-hover:translate-y-0 group-focus-within:translate-y-0 motion-reduce:transition-none touch:static touch:translate-y-0">
-        {/* The star is the main action: a wide pill that takes the whole strip. The trash is deliberately small. */}
+        {/* The star is the main action: a wide pill that takes the whole strip. Download and trash are deliberately small. */}
         <StarButton fav={fav} variant="pill" />
+        <DownloadLink
+          artifact={artifact}
+          className="grid size-7 shrink-0 place-items-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+        />
         {canTrash ? (
           <button
             type="button"
