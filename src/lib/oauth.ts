@@ -301,6 +301,7 @@ export async function verifyAccessToken(token: string): Promise<VerifiedToken | 
       email: users.email,
       name: users.name,
       image: users.image,
+      isAdmin: users.isAdmin,
     })
     .from(oauthTokens)
     .innerJoin(users, eq(users.id, oauthTokens.userId))
@@ -320,7 +321,7 @@ export async function verifyAccessToken(token: string): Promise<VerifiedToken | 
     .where(eq(oauthTokens.tokenHash, hash))
     .catch(() => {});
   return {
-    user: { id: row.userId, email: row.email, name: row.name, image: row.image, isAdmin: isAdminEmail(row.email) },
+    user: { id: row.userId, email: row.email, name: row.name, image: row.image, isAdmin: isAdminEmail(row.email) || row.isAdmin },
     clientId: row.clientId ?? "personal-token",
     scope: row.scope,
     expiresAt: row.expiresAt,

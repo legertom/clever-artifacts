@@ -43,6 +43,13 @@
       "when": 1791584715041,
       "tag": "0005_crazy_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794509434592,
+      "tag": "0006_outstanding_nehzno",
+      "breakpoints": true
     }
   ]
 }

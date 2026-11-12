@@ -252,6 +252,8 @@ export type AdminUserRow = {
   department: string | null;
   managerEmail: string | null;
   managerName: string | null;
+  /** Promoted from this page. People in ADMIN_EMAILS are admins whatever this says. */
+  isAdmin: boolean;
   reportCount: number;
   createdAt: Date;
   lastLoginAt: Date | null;
@@ -270,7 +272,9 @@ export async function adminPeoplePage(query: PeoplePageQuery): Promise<{ rows: A
   const conditions: (SQL | undefined)[] = [];
   if (query.filter === "signed_in") conditions.push(isNotNull(users.lastLoginAt));
   if (query.filter === "directory") conditions.push(isNull(users.lastLoginAt));
-  if (query.filter === "admins") conditions.push(ADMIN_EMAILS.size ? inArray(users.email, [...ADMIN_EMAILS]) : sql`false`);
+  if (query.filter === "admins") {
+    conditions.push(ADMIN_EMAILS.size ? or(eq(users.isAdmin, true), inArray(users.email, [...ADMIN_EMAILS])) : eq(users.isAdmin, true));
+  }
   if (query.filter === "managers") {
     conditions.push(exists(db.select({ one: sql`1` }).from(reports).where(eq(reports.managerEmail, users.email))));
   }
@@ -305,6 +309,7 @@ export async function adminPeoplePage(query: PeoplePageQuery): Promise<{ rows: A
         department: users.department,
         managerEmail: users.managerEmail,
         managerName: manager.name,
+        isAdmin: users.isAdmin,
         reportCount: sql<number>`(select count(*) from ${users} r where r.manager_email = ${users.email})::int`,
         createdAt: users.createdAt,
         lastLoginAt: users.lastLoginAt,
@@ -362,6 +367,62 @@ export async function setManager(userId: string, managerEmailRaw: string | null)
     ? await db.select({ name: users.name }).from(users).where(eq(users.email, managerEmail)).limit(1)
     : [{ name: null }];
   return { ok: true, managerName: m?.name ?? null };
+}
+
+export type SetAdminResult = { ok: true } | { ok: false; error: string };
+
+/** Grant or remove admin access. Admins named in ADMIN_EMAILS can't be changed here. */
+export async function setAdmin(actorId: string, userId: string, makeAdmin: boolean): Promise<SetAdminResult> {
+  const [person] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!person) return { ok: false, error: "Person not found." };
+  if (makeAdmin) {
+    if (!isAllowedEmail(person.email)) return { ok: false, error: "Admins must have a company email." };
+  } else {
+    if (ADMIN_EMAILS.has(person.email)) return { ok: false, error: "This admin is set in the app's configuration (ADMIN_EMAILS)." };
+    if (userId === actorId) return { ok: false, error: "You can't remove your own admin access. Ask another admin." };
+  }
+  await db.update(users).set({ isAdmin: makeAdmin }).where(eq(users.id, userId));
+  return { ok: true };
+}
+
+export type AdminListRow = {
+  /** Null for someone named in ADMIN_EMAILS who has never signed in or been imported. */
+  id: string | null;
+  email: string;
+  name: string | null;
+  image: string | null;
+  title: string | null;
+  department: string | null;
+  lastLoginAt: Date | null;
+  /** `config`: named in ADMIN_EMAILS, fixed. `promoted`: made an admin from Admin → People. */
+  source: "config" | "promoted";
+};
+
+/** Everyone with admin access: the configured admins first, then promoted ones, each by name. */
+export async function adminList(): Promise<AdminListRow[]> {
+  const configured = [...ADMIN_EMAILS];
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      image: users.image,
+      title: users.title,
+      department: users.department,
+      lastLoginAt: users.lastLoginAt,
+    })
+    .from(users)
+    .where(configured.length ? or(eq(users.isAdmin, true), inArray(users.email, configured)) : eq(users.isAdmin, true));
+
+  const known = new Set(rows.map((r) => r.email));
+  const list: AdminListRow[] = [
+    ...rows.map((r) => ({ ...r, source: ADMIN_EMAILS.has(r.email) ? ("config" as const) : ("promoted" as const) })),
+    ...configured
+      .filter((email) => !known.has(email))
+      .map((email) => ({ id: null, email, name: null, image: null, title: null, department: null, lastLoginAt: null, source: "config" as const })),
+  ];
+  const label = (r: AdminListRow) => (r.name ?? r.email).toLowerCase();
+  return list.sort((a, b) => (a.source === b.source ? label(a).localeCompare(label(b)) : a.source === "config" ? -1 : 1));
 }
 
 // ---------------------------------------------------------------------------

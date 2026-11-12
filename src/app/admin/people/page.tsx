@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdminToggle } from "@/components/admin/admin-toggle";
 import { ManagerPicker } from "@/components/admin/manager-picker";
 import { Pager } from "@/components/admin/pager";
 import { AdminToolbar } from "@/components/admin/toolbar";
@@ -8,6 +9,7 @@ import { DirectoryImport } from "@/components/directory-import";
 import { ADMIN_PAGE_SIZE, adminPeoplePage, PEOPLE_FILTER_LABELS, PEOPLE_FILTERS, type PeopleFilter } from "@/lib/admin";
 import { ADMIN_EMAILS, ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
 import { timeAgo } from "@/lib/format";
+import { getSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Admin · People" };
 
@@ -19,7 +21,7 @@ export default async function AdminPeoplePage({ searchParams }: { searchParams: 
   const q = one(sp.q).trim().slice(0, 100);
   const filter = (PEOPLE_FILTERS as readonly string[]).includes(one(sp.filter)) ? (one(sp.filter) as PeopleFilter) : "all";
   const page = Math.max(1, Number(one(sp.page)) || 1);
-  const { rows, total } = await adminPeoplePage({ q, filter, page });
+  const [{ rows, total }, viewer] = await Promise.all([adminPeoplePage({ q, filter, page }), getSessionUser()]);
 
   return (
     <div className="space-y-4">
@@ -27,7 +29,11 @@ export default async function AdminPeoplePage({ searchParams }: { searchParams: 
         <p className="max-w-2xl text-sm text-neutral-500">
           Everyone who has signed in or been imported from the directory. Imported people can be added to share lists
           before their first sign-in. Click a manager to change who someone reports to; that drives “My direct reports”
-          sharing.
+          sharing. The shield beside a name makes that person an admin;{" "}
+          <Link href="/admin/admins" className="text-brand-700 hover:underline">
+            see all admins
+          </Link>
+          .
         </p>
         <DirectoryImport domain={ALLOWED_EMAIL_DOMAIN} />
       </div>
@@ -68,9 +74,20 @@ export default async function AdminPeoplePage({ searchParams }: { searchParams: 
                   <span className="inline-flex items-center gap-2">
                     <Avatar name={p.name} email={p.email} image={p.image} size={24} />
                     <span className="min-w-0">
-                      <span className="block font-medium text-neutral-900">
-                        {p.name ?? p.email}
-                        {ADMIN_EMAILS.has(p.email) ? <span className="badge ml-1.5 border-violet-200 bg-violet-50 text-violet-800">admin</span> : null}
+                      <span className="flex items-center gap-1.5 font-medium text-neutral-900">
+                        <span className="min-w-0 truncate">{p.name ?? p.email}</span>
+                        {ADMIN_EMAILS.has(p.email) || p.isAdmin ? (
+                          <span
+                            className="badge border-violet-200 bg-violet-50 text-violet-800"
+                            title={ADMIN_EMAILS.has(p.email) ? "Admin set in the app's configuration" : undefined}
+                          >
+                            admin
+                          </span>
+                        ) : null}
+                        {/* Configured admins are fixed, and nobody removes their own access. */}
+                        {ADMIN_EMAILS.has(p.email) || p.id === viewer?.id ? null : (
+                          <AdminToggle userId={p.id} name={p.name ?? p.email} isAdmin={p.isAdmin} />
+                        )}
                       </span>
                       <span className="block max-w-[320px] truncate text-xs text-neutral-500">
                         {p.email}

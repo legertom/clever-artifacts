@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   department: text("department"),
   /** Lower-cased email of this person's manager, from the directory import. */
   managerEmail: text("manager_email"),
+  /** Promoted from Admin → People. The emails in ADMIN_EMAILS are admins regardless. */
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

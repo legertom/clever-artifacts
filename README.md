@@ -29,9 +29,10 @@ GitHub `legertom/clever-artifacts`, Neon database via the Vercel integration).
   regenerate the preview, move to trash, restore, delete permanently.
 - **Trash** – anything in the trash for 30 days is purged (lazily on dashboard load
   and by a daily Vercel cron hitting `/api/cron/purge-trash`).
-- **Admin** (`/admin`, emails in `ADMIN_EMAILS`) – every artifact incl. trashed,
+- **Admin** (`/admin`, emails in `ADMIN_EMAILS` plus anyone promoted) – every artifact incl. trashed,
   views per day, per-artifact views / unique viewers / shares, people, recent activity.
-  Admins can open and manage any artifact.
+  Admins can open and manage any artifact, and can make other people admins from
+  Admin → People (the shield beside a name); Admin → Admins lists everyone with access.
 - **MCP server** (`/api/mcp`, Streamable HTTP) – the whole app as tools, for Claude,
   Claude Code, Cursor, etc. Secured by an in-app OAuth 2.1 server (PKCE, dynamic client
   registration, Client ID Metadata Documents, refresh-token rotation) or personal
@@ -56,7 +57,7 @@ Puppeteer + serverless Chromium for previews · Tailwind v4.
    | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | OAuth client from Google Cloud Console → *APIs & Services → Credentials*. Add `http://localhost:3000/api/auth/callback/google` and your production URL (`https://<host>/api/auth/callback/google`) as authorized redirect URIs. |
    | `ALLOWED_EMAIL_DOMAIN` | `clever.com`. Controls who may sign in and who can be shared with. |
    | `DATABASE_URL` | Neon connection string (the pooled one is fine). |
-   | `ADMIN_EMAILS` | Comma-separated admins. Defaults to tom.leger@clever.com, kate.schaff@clever.com. |
+   | `ADMIN_EMAILS` | Comma-separated built-in admins, who can't be removed in the app. Defaults to tom.leger@clever.com, kate.schaff@clever.com. |
    | `CRON_SECRET` | Any random string; Vercel sends it as a bearer token to the purge cron. |
    | `APP_URL` | Optional public origin override for OAuth issuer / links (auto-detected otherwise). |
    | `CHROME_EXECUTABLE_PATH` | Optional, local dev only. Chrome is auto-detected on macOS/Linux. |
